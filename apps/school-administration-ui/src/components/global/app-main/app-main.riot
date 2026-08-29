@@ -1,0 +1,45 @@
+ <app-main>
+        <div class="container" style="margin-top: 2%; margin-left: 2%;">
+            <div class="columns">
+                <div class="col-2">
+                    <aside-menu></aside-menu>
+                </div>
+                <div class="col-8">
+                    <app-content></app-content>
+                </div>
+            </div>
+        </div>
+        <script>
+            import AsideMenu from '../../includes/aside-menu/aside-menu.riot';
+            import {router} from "@riotjs/route";
+
+            export default {
+                components: {
+                    AsideMenu,
+                },
+                onBeforeMount() {
+                    axios.defaults.baseURL = process.env.SCHOOL_ADMINISTRATION_API_BASE_URL
+                    axios.defaults.withCredentials = true
+                    axios.interceptors.response.use(response => {
+                        return response;
+                    }, error => {
+                        if (error.response.status === 401) {
+                            router.push('/#login')
+                        }
+                        return Promise.reject(error)
+                    });
+
+                    axios.get(`/api/v1/teacher/session/validate`)
+                        .then(res => {
+                            this.update({
+                                classItems: res.data.items,
+                            })
+                        }).catch(e => {
+                        console.log(e)
+                    }).finally(() => {
+                    });
+                }
+            }
+
+        </script>
+ </app-main>

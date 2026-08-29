@@ -1,0 +1,27 @@
+<toast>
+
+    <template if={props.showToast}>
+        <template if={props.success}>
+            <div class="toast toast-success">
+                <button class="btn btn-clear float-right" onclick={props.func}></button>
+                {props.message}
+            </div>
+        </template>
+
+        <template if={!props.success}>
+            <div class="toast toast-danger">
+                <button class="btn btn-clear float-right" onclick={props.func}></button>
+                {props.message}
+            </div>
+        </template>
+    </template>
+
+    <script>
+        export default {
+            state: {
+                closed: false,
+            },
+
+        }
+    </script>
+</toast>

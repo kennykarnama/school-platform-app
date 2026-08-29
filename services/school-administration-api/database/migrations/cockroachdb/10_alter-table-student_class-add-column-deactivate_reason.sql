@@ -1,0 +1,1 @@
+alter table student_class add column deactivate_reason string;

@@ -1,0 +1,22 @@
+.DS_Store
+.idea/
+.vscode/
+
+# Local overrides and generated files
+.env
+.env.*
+!.env.example
+*.log
+*.csv
+tmp/
+
+# Go
+*.test
+coverage.out
+
+# Node
+node_modules/
+dist/
+coverage/
+.nyc_output/
+

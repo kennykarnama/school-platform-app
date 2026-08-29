@@ -1,0 +1,246 @@
+<rekap>
+    <div class="container" style="margin-bottom: 2%;">
+        <div class="columns">
+            <div class="col" style="margin-right: 2%;">
+                <div class="form-group {state.isSelectAcademicLoading}">
+                    <select id="select-academic_year" class="form-select" onchange={onChangeAcademic}>
+                        <option disabled selected>Tahun Akademik - Semester</option>
+                        <option each={academicYear in state.academicYears} value={academicYear.ID}>
+                            {academicYear.label}
+                        </option>
+                    </select>
+                </div>
+            </div>
+            <div class="col" style="margin-right: 2%;">
+                <div class="form-group {state.isSelectClassLoading}">
+                    <select id="select-class_label" class="form-select" onchange={onChangeClass}>
+                        <option disabled selected>Pilih Kelas</option>
+                        <option each={classItem in state.classItems} value={classItem.ID}>{classItem.label}</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col" style="margin-right: 2%">
+                <input class="form-input" type="text" id="attendance_date_from" placeholder="Dari tanggal"
+                       onchange={onChangeAttendanceDate}>
+            </div>
+            <div class="col" style="margin-right: 2%">
+                <input class="form-input" type="text" id="attendance_date_to" placeholder="Sampai tanggal"
+                       onchange={onChangeAttendanceDate}>
+            </div>
+            <div class="col">
+                <button class="btn btn-action" onclick={showStats}><i class="icon icon-search"></i></button>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class={state.loadingData}>
+
+        </div>
+        <template if={state.stats !== undefined && state.stats.length > 0}>
+
+            <div class="container">
+
+                <a class="btn btn-primary" download="rekap.xls" href="#"
+                   onclick="return ExcellentExport.excel(this, 'tabel-rekap', 'Sheet 1');"><i
+                        class="icon icon-download"></i></a>
+                <button class="btn btn-action s-circle float-right tooltip" data-tooltip="scroll ke kanan untuk tabel"
+                        onclick={scrollTableRight}><i class="icon icon-arrow-right"></i></button>
+                <button class="btn btn-action s-circle float-right tooltip" style="margin-right: 1%;"
+                        data-tooltip="scroll ke kiri untuk tabel" onclick={scrollTableLeft}><i
+                        class="icon icon-arrow-left"></i></button>
+            </div>
+            <table class="table table-scroll" id="tabel-rekap">
+                <thead>
+                <tr>
+                    <th>Nama</th>
+                    <th each={at in state.attendanceTypes}>{at.label}</th>
+                    <th>Jumlah</th>
+                    <th each={at in state.attendanceTypes}>{at.label} %</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr each={stat in state.stats}>
+                    <td>{stat.name}</td>
+                    <td each={attendanceStat in stat.statItems}>
+                        {attendanceStat.counts}
+                    </td>
+                    <td>{stat.total}</td>
+                    <td each={attendanceStat in stat.statItems}>
+                        {percentage(attendanceStat.counts, stat.total)}%
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <div class="container">
+                <button class="btn btn-action s-circle float-right tooltip" data-tooltip="scroll ke kanan untuk tabel"
+                        onclick={scrollTableRight}><i class="icon icon-arrow-right"></i></button>
+                <button class="btn btn-action s-circle float-right tooltip" style="margin-right: 1%;"
+                        data-tooltip="scroll ke kiri untuk tabel" onclick={scrollTableLeft}><i
+                        class="icon icon-arrow-left"></i></button>
+            </div>
+        </template>
+    </div>
+    <script>
+        export default {
+            state: {
+                classItems: [],
+                academicYears: [],
+                students: undefined,
+                selectedClass: '',
+                selectedAcademicYear: '',
+                componentUpdateSource: undefined,
+                isSelectAcademicLoading: '',
+                isSelectClassLoading: '',
+                isStudentListLoading: '',
+                loadingData: '',
+                selectedAttendanceDateFrom: '',
+                selectedAttendanceDateTo: '',
+                attendanceTypes: [],
+                stats: undefined,
+            },
+            onMounted(props, state) {
+                // right after the component is mounted on the page
+                this.loadClasses();
+                this.loadAcademicYears();
+                this.loadAttendanceTypes();
+                const attendanceDateFrom = document.getElementById('attendance_date_from');
+                const attendanceDateTo = document.getElementById('attendance_date_to');
+                const datepickerFrom = new Datepicker(attendanceDateFrom, {
+                    // ...options
+                    format: 'yyyy-mm-dd',
+                    todayHighlight: true
+                });
+                const datepickerTo = new Datepicker(attendanceDateTo, {
+                    // ...options
+                    format: 'yyyy-mm-dd',
+                    todayHighlight: true
+                });
+                let p = this;
+                attendanceDateFrom.addEventListener('hide', function (e) {
+                    if (e.target.value) {
+                        p.update({
+                            selectedAttendanceDateFrom: e.target.value,
+                        })
+                    }
+                })
+                attendanceDateTo.addEventListener('hide', function (e) {
+                    console.log(e.target.value)
+                    if (e.target.value) {
+                        p.update({
+                            selectedAttendanceDateTo: e.target.value,
+                        })
+                    }
+                })
+            },
+            loadAcademicYears() {
+                this.update({
+                    isSelectAcademicLoading: 'loading',
+                })
+                axios.get(`/api/v1/academic-years`)
+                    .then(res => {
+                        this.update({
+                            academicYears: res.data.items,
+                        })
+                    }).catch(e => {
+                    console.log(e)
+                }).finally(() => {
+                    this.update({
+                        isSelectAcademicLoading: '',
+                    })
+                })
+            },
+            loadClasses() {
+                this.update({
+                    isSelectClassLoading: 'loading',
+                })
+                axios.get(`/api/v1/classes`)
+                    .then(res => {
+                        this.update({
+                            classItems: res.data.items,
+                        })
+                    }).catch(e => {
+                    console.log(e);
+                }).finally(() => {
+                    this.update({
+                        isSelectClassLoading: '',
+                    })
+                })
+            },
+            loadAttendanceTypes() {
+                axios.get(`/api/v1/attendance/types`)
+                    .then(res => {
+                        this.update({
+                            attendanceTypes: res.data.items,
+                        })
+                    }).catch(e => {
+                    console.log(e)
+                }).finally(() => {
+                })
+            },
+            showStats(e) {
+                e.preventDefault();
+                this.update({
+                    loadingData: 'loading',
+                    stats: undefined,
+                })
+                this.loadStats(this.state.selectedAcademicYear, this.state.selectedClass, this.state.selectedAttendanceDateFrom, this.state.selectedAttendanceDateTo);
+            },
+            loadStats(academicID, classLabel, attendanceDateFrom, attendanceDateTo) {
+                if (academicID == "" || classLabel == "" || attendanceDateFrom == "" || attendanceDateTo == "") {
+                    return []
+                }
+                const fetch = async () => {
+
+                    await axios.get(`/api/v1/student/attendance/stats`, {
+                        params: {
+                            'academicYearID': academicID,
+                            'classLabel': classLabel,
+                            'from': attendanceDateFrom,
+                            'to': attendanceDateTo,
+                        }
+                    })
+                        .then(res => {
+                            this.update({
+                                stats: res.data.items ? res.data.items : [],
+                            })
+                        }).catch(e => {
+                            console.log(e)
+                        }).finally(() => {
+                            this.update({
+                                loadingData: '',
+                            })
+                        })
+                }
+                fetch()
+            },
+            onChangeAcademic(e) {
+                this.update({
+                    selectedAcademicYear: e.target.value,
+                })
+            },
+            onChangeClass(e) {
+                this.update({
+                    selectedClass: e.target.value,
+                })
+            },
+            percentage(count, total) {
+                if (total < 1) {
+                    return '-';
+                }
+                return +((count * 1.0 / total * 1.0) * 100.0).toFixed(2);
+            },
+            scrollTableRight() {
+                let rekap = document.getElementById('tabel-rekap');
+                if (rekap) {
+                    rekap.scrollLeft += 20;
+                }
+            },
+            scrollTableLeft() {
+                let rekap = document.getElementById('tabel-rekap');
+                if (rekap) {
+                    rekap.scrollLeft -= 20;
+                }
+            }
+        }
+    </script>
+</rekap>

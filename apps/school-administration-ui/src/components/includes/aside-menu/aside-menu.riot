@@ -1,0 +1,64 @@
+<aside-menu>
+    <route path="(.*)">
+        <ul class="nav">
+            <li each={item in getItems(state, route)} class="nav-item {isLinkSelected(item, route) ? 'active' : ''}">
+                <a href="{item.link}">{item.label}</a>
+                <template if={item.children}>
+                    <ul class="nav">
+                        <li each={child in item.children} class="nav-item">
+                            <a href="{child.link}">{child.label}</a>
+                        </li>
+                    </ul>
+                </template>
+            </li>
+        </ul>
+    </route>
+
+    <script>
+        export default {
+            state: {
+                items: [
+                    {
+                        "label": "Home",
+                        "link": "#",
+                    },
+                    {
+                        "label": "Absensi",
+                        "link": "#absensi",
+                        "children": [
+                            {
+                                "label": "Input",
+                                "link": "#absensi/input"
+                            },
+                            {
+                                "label": "Rekap",
+                                "link": "#absensi/stats",
+                            },
+                            {
+                                "label": "Rekap Klasikal",
+                                "link": "/#absensi/stats-classical",
+                            }
+                        ]
+                    },
+                    {
+                        "label": "About",
+                        "link": "#about"
+                    }
+                ]
+            },
+            isLinkSelected(item, route) {
+                const isHome = !route.hash || route.hash === '#'
+                if (item.link === '#') {
+                    return isHome
+                }
+                return !isHome && route.hash.includes(item.link)
+            },
+            getItems(state, route) {
+                if (route.hash === '#login') {
+                    return [];
+                }
+                return state.items;
+            }
+        }
+    </script>
+</aside-menu>

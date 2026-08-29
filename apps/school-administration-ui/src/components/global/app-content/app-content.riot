@@ -1,0 +1,53 @@
+<app-content>
+    <route path="/">
+        <home></home>
+    </route>
+
+    <route path="/#absensi/input">
+        <absensi-input></absensi-input>
+    </route>
+    <route path="/#absensi/input/form">
+        <absensi-input-form></absensi-input-form>
+    </route>
+    <route path="/#absensi/input/form/transfer">
+        <absensi-transfer-form></absensi-transfer-form>
+    </route>
+    <route path="/#absensi/stats">
+        <rekap></rekap>
+    </route>
+    <route path="/#about">
+        <about></about>
+    </route>
+    <route path="/#absensi/stats-classical">
+        <rekap-klasikal></rekap-klasikal>
+    </route>
+    <route path="/#login" on-mounted="{onMountedRouteLogin}">
+        <login></login>
+    </route>
+
+    <script>
+        import Home from '../../includes/pages/home/home.riot';
+        import AbsensiInput from '../../includes/pages/absensi/absensi-input/absensi-input.riot';
+        import AbsensiInputForm from '../../includes/pages/absensi/absensi-input-form/absensi-input-form.riot';
+        import AbsensiTransferForm from '../../includes/pages/absensi/absensi-transfer-form/absensi-transfer-form.riot'
+        import About from '../../includes/pages/about/about.riot';
+        import Rekap from '../../includes/pages/absensi/rekap/rekap.riot';
+        import RekapKlasikal from '../../includes/pages/absensi/rekap/rekap-klasikal.riot';
+        import lazy from "@riotjs/lazy";
+
+        export default {
+            components: {
+                Home,
+                AbsensiInput,
+                AbsensiInputForm,
+                About,
+                Rekap,
+                RekapKlasikal,
+                login: lazy(() => import('../../includes/pages/login/login.riot')),
+                AbsensiTransferForm
+            },
+            onMountedRouteLogin() {}
+        }
+
+    </script>
+</app-content>

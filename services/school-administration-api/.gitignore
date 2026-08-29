@@ -1,0 +1,23 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+*.orig
+.sh.env
+.envrc
+.env
+tmp
+
+amaan-user-api
+
+.idea
+
+*.DS_Store
+*.log
+*.csv

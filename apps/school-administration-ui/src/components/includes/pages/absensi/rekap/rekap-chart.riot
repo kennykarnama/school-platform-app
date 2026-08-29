@@ -1,0 +1,70 @@
+<rekap-chart>
+    <canvas id="{props.chartID}" width="{props.width}" height="{props.height}"></canvas>
+    <script>
+        import {
+            Chart,
+            ArcElement,
+            LineElement,
+            BarElement,
+            PointElement,
+            BarController,
+            BubbleController,
+            DoughnutController,
+            LineController,
+            PieController,
+            PolarAreaController,
+            RadarController,
+            ScatterController,
+            CategoryScale,
+            LinearScale,
+            LogarithmicScale,
+            RadialLinearScale,
+            TimeScale,
+            TimeSeriesScale,
+            Decimation,
+            Filler,
+            Legend,
+            Title,
+            Tooltip,
+            SubTitle,
+            registerables
+        } from 'chart.js';
+        import _, {isUndefined} from "lodash";
+
+        Chart.register(...registerables);
+
+        export default {
+            onUpdated(props, state) {
+                if (props.data) {
+                    this.createChart(null, props.chartID, props.data);
+                }
+            },
+            createChart(statsByPeriod, docID, data) {
+                console.log(window.myCharts)
+
+                if (isUndefined(window.myCharts)) {
+                    window.myCharts = {}
+                }
+                if (window.myCharts[docID] instanceof Chart) {
+                    console.log('yeee')
+                    console.log(window.myCharts)
+                    window.myCharts[docID].destroy();
+                }
+                const ctx = document.getElementById(docID).getContext('2d')
+
+                window.myCharts[docID] = new Chart(ctx, {
+                    type: 'bar',
+                    data: data,
+                    options: {
+                        scales: {
+                            y: {
+                                suggestedMax: 50
+                            }
+                        }
+                    }
+                })
+
+            }
+        }
+    </script>
+</rekap-chart>

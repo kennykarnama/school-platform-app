@@ -1,0 +1,114 @@
+<absensi-input-form>
+
+    <div class="container">
+
+        <template if={state.showToast}>
+            <template if={state.success}>
+                <div class="toast toast-success">
+                    <button class="btn btn-clear float-right" onclick={closeToast}></button>
+                    {state.toastMessage}
+                </div>
+            </template>
+
+            <template if={!state.success}>
+                <div class="toast toast-error">
+                    <button class="btn btn-clear float-right" onclick={closeToast}></button>
+                    {state.toastMessage}
+                </div>
+            </template>
+        </template>
+    </div>
+    <!-- form input control -->
+    <div class="container" style="padding-right: 50%; margin-top: 3%;">
+        <div class="form-group">
+            <input class="form-input" type="text" id="name" placeholder="Nama">
+        </div>
+        <div class="form-group">
+            <select id="select-academic_year" class="form-select" onchange={onChangeAcademic}>
+                <option disabled selected>Tahun Akademik - Semester</option>
+                <option each={academicYear in state.academicYears} value={academicYear.ID}>{academicYear.label}</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <select id="select-class_label" class="form-select" onchange={onChangeClass}>
+                <option disabled selected>Pilih Kelas</option>
+                <option each={classItem in state.classItems} value={classItem.ID}>{classItem.label}</option>
+            </select>
+        </div>
+        <button class="btn btn-success" onclick={register}>Save</button>
+    </div>
+
+    <script>
+        import Toast from '../../../toast/toast.riot';
+
+        export default {
+            components: {
+                Toast,
+            },
+            state: {
+                classItems: [],
+                academicYears: [],
+                toastMessage: '',
+                success: undefined,
+            },
+            onMounted(props, state) {
+                // right after the component is mounted on the page
+                this.loadClasses();
+                this.loadAcademicYears();
+            },
+            loadClasses() {
+                axios.get(`/api/v1/classes`)
+                    .then(res => {
+                        this.update({
+                            classItems: res.data.items,
+                        })
+                    })
+            },
+            loadAcademicYears() {
+                axios.get(`/api/v1/academic-years`)
+                    .then(res => {
+                        this.update({
+                            academicYears: res.data.items,
+                        })
+                    })
+            },
+            register(e) {
+                e.preventDefault();
+                let academicSelector = document.getElementById('select-academic_year');
+                let classSelector = document.getElementById('select-class_label');
+                let nameField = document.getElementById('name');
+                let payload = {
+                    name: document.getElementById('name').value,
+                    academicYearID: academicSelector[academicSelector.selectedIndex].value,
+                    classLabel: classSelector[classSelector.selectedIndex].value,
+                }
+                axios({
+                    method: 'POST',
+                    url: '/api/v1/student/attendance/register',
+                    data: payload,
+                }).then((resp) => {
+                    console.log(resp)
+                    this.update({
+                        toastMessage: 'Data berhasil disimpan',
+                        success: true,
+                        showToast: true,
+                    })
+                }).catch(e => {
+                    this.update({
+                        toastMessage: 'Data tidak berhasil disimpan',
+                        success: false,
+                        showToast: true,
+                    })
+                    console.log(e)
+                }).finally(() => {
+                    nameField.value = "";
+                });
+            },
+            closeToast() {
+                this.update({
+                    showToast: false,
+                })
+            }
+        }
+    </script>
+</absensi-input-form>

@@ -1,0 +1,1 @@
+ALTER TABLE student_class ADD COLUMN deleted_at TIMESTAMPTZ;

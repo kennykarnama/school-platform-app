@@ -1,0 +1,324 @@
+<absensi-table>
+
+    <div class="modal {state.showModalDeactivateReason ? 'active' : ''}" id="modal-deactivate-reason">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title h5">Konfirmasi Hapus</div>
+            </div>
+            <div class="modal-body">
+                <div class="content">
+                    <div class="container">
+                        <template if={state.showToastDeactivate}>
+                            <div class="toast toast-{state.deactivateSuccess ? 'success' : 'error'}">
+                                <button class="btn btn-clear float-right" onclick={closeToastDeactivate}></button>
+                                {state.toastDeactiveMessage}
+                            </div>
+                        </template>
+                    </div>
+                    <!-- content here -->
+                    <!-- form input control -->
+                    <div class="form-group">
+                        <input class="form-input" type="text" id="deactivate-reason-studentClassID" disabled
+                               value={state.deactivatedStudentClassID}>
+                    </div>
+                    <div class="form-group">
+                        <input class="form-input" type="text" id="deactivate-reason-input" placeholder="Alasan">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" style="margin-right: 2%;" onclick={closeModalDeactivateReason}>Batal</button>
+                <button class="btn btn-success {state.deactivateOnProgress ? 'loading' : ''}" onclick={deactivate}>
+                    Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <template if={props.students && props.students.length == 0}>
+            <div class="empty">
+                <div class="empty-icon">
+                    <i class="icon icon-people icon-4x"></i>
+                </div>
+                <p class="empty-title h5">Belum ada siswa di absen</p>
+                <p class="empty-subtitle">Klik tombol `tambah siswa` untuk menambahkan siswa baru</p>
+                <div class="empty-action">
+                    <button class="btn btn-primary" onclick={redirectToInputForm}>Tambah siswa</button>
+                    <button class="btn btn-success" onclick={redirectToTransferForm} style="margin-left: 2%;">Import</button>
+                </div>
+            </div>
+        </template>
+        <template if={props.students && props.students.length > 0}>
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Nama</th>
+                    <th>Alias</th>
+                    <th>Kehadiran</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr each={item in props.students}
+                    style="{hideOnTable(item.studentClassID, state.hideStudentClassIDs) ? 'display: none;' : ''}">
+                    <td>
+                        {item.name}
+                    </td>
+                    <td>
+                        {item.alternativeID}
+                    </td>
+                    <td>
+                        <div class="form-group">
+                            <select class="form-select {state.isAttendanceTypeLoading ? 'loadng' : ''}"
+                                    id={item.studentClassID} onchange={onChangeAttendance}>
+                                <option value="nan">Choose an option</option>
+                                <option each={attendanceItem in state.attendanceTypes} value={attendanceItem.ID}
+                                        selected={item.attendanceTypeID == attendanceItem.ID ? 'selected' : ''}>
+                                    {attendanceItem.label}
+                                </option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="form-group">
+                            <button class="btn btn-error" data-deactiveStudentClassID={item.studentClassID}
+                                    onclick={showModalDeactivateReason}>Hapus
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+
+                    </td>
+                    <td>
+                        <button class="btn btn-primary" onclick={redirectToInputForm}>Tambah siswa</button>
+                    </td>
+                    <td>
+
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+
+        </template>
+        <div class="container"
+             style="display: {props.students && props.students.length > 0 ? 'block' : 'none'}; margin-top: 3%;">
+            <div class="columns">
+                <div class="col-4">
+                    <button class="btn btn-success {state.saveOnProgress ? 'loading' : ''}" onclick={submitAttendance}>
+                        Submit Absensi
+                    </button>
+                </div>
+                <div class="col-4">
+                    <template if={state.showToast}>
+                        <div class="toast toast-{state.toastSuccess ? 'success' : 'error'}">
+                            <button class="btn btn-clear float-right" onclick={closeToast}></button>
+                            {state.toastMessage}
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            import {route, router, setBase} from '@riotjs/route'
+
+            export default {
+                state: {
+                    saveOnProgress: false,
+                    toastMessage: '',
+                    toastSuccess: true,
+                    showToast: false,
+                    attendanceTypes: [],
+                    isAttendanceTypeLoading: false,
+                    showModalDeactivateReason: false,
+                    deactivatedStudentClassID: '',
+                    toastDeactiveMessage: '',
+                    showToastDeactivate: false,
+                    deactivateSuccess: true,
+                    deactivateOnProgress: false,
+                    hideStudentClassIDs: [],
+                },
+                onMounted(props, state) {
+                    this.loadAttendanceTypes()
+                },
+                hideOnTable(id, data) {
+                    for (let i = 0; i < data.length; i++) {
+                        if (data[i] == id) {
+                            return true;
+                        }
+                    }
+                    return false;
+                },
+                submitAttendance(e) {
+                    e.preventDefault();
+                    if (!this.props.students) {
+                        return
+                    }
+                    const attendanceDate = this.props.attendanceDate;
+                    let payloadItems = [];
+                    let selectedAttendanceInvalids = []
+                    let validationFailed = false;
+                    this.props.students.forEach(function (student) {
+                        const attend = document.getElementById(student.studentClassID).checked
+                        let attendanceTypeSelector = document.getElementById(student.studentClassID);
+                        let payloadItem = {
+                            studentClassID: student.studentClassID,
+                            attend: false, // deprecated
+                            attendanceTypeID: attendanceTypeSelector[attendanceTypeSelector.selectedIndex].value,
+                            attendanceDate: attendanceDate,
+                        };
+                        if (payloadItem.attendanceTypeID == "nan") {
+                            if (!attendanceTypeSelector.classList.contains('is-error')) {
+                                attendanceTypeSelector.classList.add("is-error");
+                                attendanceTypeSelector.insertAdjacentHTML("afterend", '<p class="form-input-hint">Jenis kehadiran siswa harus dipilih</p>')
+                            }
+                            validationFailed = true;
+                        }
+                        payloadItems.push(payloadItem);
+                    })
+                    if (validationFailed) {
+                        return;
+                    }
+                    const payload = {
+                        items: payloadItems,
+                    }
+                    this.update({
+                        saveOnProgress: true,
+                    })
+                    axios({
+                        method: 'POST',
+                        url: '/api/v1/student/attendance/submit',
+                        data: payload,
+                    }).then((resp) => {
+                        console.log(resp)
+                        this.update({
+                            showToast: true,
+                            toastMessage: 'Data berhasil disimpan',
+                            toastSuccess: true,
+                        })
+                    }).catch(e => {
+                        console.log(e)
+                        this.update({
+                            showToast: true,
+                            toastMessage: 'Data tidak berhasil disimpan',
+                            toastSuccess: false,
+                        })
+                    }).finally(() => {
+                        this.update({
+                            saveOnProgress: false,
+                        })
+                        var p = this;
+                        setTimeout(() => {
+                            p.update({
+                                showToast: false,
+                            })
+                        }, "2000")
+                    });
+                },
+                closeToast() {
+                    this.update({
+                        showToast: false,
+                    })
+                },
+                redirectToInputForm(e) {
+                    e.preventDefault()
+                    router.push('/#absensi/input/form');
+                },
+                redirectToTransferForm(e) {
+                    e.preventDefault()
+                    router.push('/#absensi/input/form/transfer');
+                },
+                loadAttendanceTypes() {
+                    this.update({
+                        isAttendanceTypeLoading: true,
+                    })
+                    axios.get(`/api/v1/attendance/types`)
+                        .then(res => {
+                            this.update({
+                                attendanceTypes: res.data.items,
+                            })
+                        }).catch(e => {
+                        console.log(e)
+                    }).finally(() => {
+                        this.update({
+                            isAttendanceTypeLoading: false,
+                        })
+                    })
+                },
+                showModalDeactivateReason(e) {
+                    const studentClassID = e.target.dataset.deactivestudentclassid;
+                    this.update({
+                        showModalDeactivateReason: true,
+                        deactivatedStudentClassID: studentClassID,
+                    })
+                },
+                closeModalDeactivateReason(e) {
+                    e.preventDefault();
+                    document.getElementById('deactivate-reason-input').value = '';
+                    this.update({
+                        showModalDeactivateReason: false,
+                        deactivatedStudentClassID: "",
+                    })
+                },
+                closeToastDeactivate() {
+                    this.update({
+                        showToastDeactivate: false,
+                    })
+                },
+                deactivate(e) {
+                    e.preventDefault()
+                    const studentClassID = document.getElementById('deactivate-reason-studentClassID').value;
+                    const reasonValue = document.getElementById('deactivate-reason-input').value;
+                    const payload = {
+                        reason: reasonValue,
+                    }
+                    this.update({
+                        deactivateOnProgress: true,
+                    })
+                    document.getElementById('deactivate-reason-input').value = "";
+                    axios({
+                        method: 'PATCH',
+                        url: '/api/v1/student/class/' + studentClassID + "/deactivate",
+                        data: payload,
+                    }).then((resp) => {
+                        console.log(resp)
+                        this.update({
+                            toastDeactiveMessage: 'Siswa berhasil dihapus',
+                            showModalDeactivateReason: false,
+                            hideStudentClassIDs: [
+                                ...this.state.hideStudentClassIDs,
+                                studentClassID,
+                            ],
+                        })
+                    }).catch(e => {
+                        this.update({
+                            toastDeactiveMessage: 'Siswa tidak berhasil dihapus',
+                            deactivateSuccess: false,
+                            showToastDeactivate: true,
+                        })
+                        console.log(e)
+                    }).finally(() => {
+                        this.update({
+                            deactivateOnProgress: false,
+                            deactivatedStudentClassID: '',
+                        })
+                    });
+                },
+                onChangeAttendance(e) {
+                    let attendanceTypeSelector = document.getElementById(e.target.id);
+                    let r = attendanceTypeSelector.parentNode;
+                    let nextSibling = attendanceTypeSelector.nextSibling;
+                    if (r && nextSibling) {
+                        if (nextSibling.classList.contains("form-input-hint")) {
+                            r.removeChild(nextSibling);
+                            attendanceTypeSelector.classList.remove("is-error");
+                        }
+                    }
+                }
+            }
+        </script>
+</absensi-table>

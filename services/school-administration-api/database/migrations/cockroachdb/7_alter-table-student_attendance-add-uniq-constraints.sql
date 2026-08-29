@@ -1,0 +1,1 @@
+alter table student_attendance add constraint class__attendance_date__unique unique(student_class_id, attendance_date);

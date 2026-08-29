@@ -1,0 +1,360 @@
+<rekap-klasikal>
+
+    <!--    filter buttons -->
+    <div class="container">
+        <div class="columns">
+            <div class="col" style="margin-right: 2%;">
+                <div class="form-group {state.isSelectAcademicLoading}">
+                    <select id="select-academic_year" class="form-select" onchange={onChangeAcademic}>
+                        <option disabled selected>Tahun Akademik - Semester</option>
+                        <option each={academicYear in state.academicYears} value={academicYear.ID}>
+                            {academicYear.label}
+                        </option>
+                    </select>
+                </div>
+            </div>
+            <div class="col" style="margin-right: 2%;">
+                <div class="form-group {state.isSelectClassLoading}">
+                    <select id="select-class_label" class="form-select" onchange={onChangeClass}>
+                        <option disabled selected>Pilih Kelas</option>
+                        <option each={classItem in state.classItems} value={classItem.ID}>{classItem.label}</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col" style="margin-right: 2%">
+                <input class="form-input" type="text" id="attendance_date_from" placeholder="Dari tanggal"
+                       onchange={onChangeAttendanceDate}>
+            </div>
+            <div class="col" style="margin-right: 2%">
+                <input class="form-input" type="text" id="attendance_date_to" placeholder="Sampai tanggal"
+                       onchange={onChangeAttendanceDate}>
+            </div>
+            <div class="col">
+                <button class="btn btn-action" onclick={showStats}><i class="icon icon-search"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class={state.loadingData}>
+
+    </div>
+    <!--    content -->
+    <template if={state.statsByPeriod}>
+        <div class="container" style="margin-top: 4%;" each={period in Object.keys(state.statsByPeriod)}>
+            <div class="tile tile-centered">
+                <div class="tile-icon">
+                    <div class="example-tile-icon">
+                        <i class="icon icon-time icon-2x centered"></i>
+                    </div>
+                </div>
+                <div class="tile-content">
+                    <div class="tile-title">{humanizeDateFragments(period)}</div>
+                </div>
+            </div>
+            <table class="table table-scroll">
+                <thead>
+                <th>Tanggal</th>
+                <th each={attendanceType in state.attendanceTypes}>{attendanceType.label}</th>
+                <th>Jumlah Siswa</th>
+                <th each={attendanceType in state.attendanceTypes}>{attendanceType.label} %</th>
+                </thead>
+
+                <tbody>
+                <tr each={attendanceDate in Object.keys(groupByAttendanceDate(state.statsByPeriod[period]))}>
+                    <td>{attendanceDate}</td>
+                    <td each={at in state.attendanceTypes}>
+                        {
+                        getStatCountsByType(groupByAttendanceDate(state.statsByPeriod[period])[attendanceDate], at.ID)
+                        }
+                    </td>
+                    <td>
+                        {
+                        totalStudentsByStats(groupByAttendanceDate(state.statsByPeriod[period])[attendanceDate])
+                        }
+                    </td>
+                    <td each={at in state.attendanceTypes}>
+                        {
+                        percentage(getStatCountsByType(groupByAttendanceDate(state.statsByPeriod[period])[attendanceDate], at.ID),
+                                totalStudentsByStats(groupByAttendanceDate(state.statsByPeriod[period])[attendanceDate]))
+                        } %
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <rekap-chart chartID="{period}" width="400" height="400"
+                         data={buildChartData(period, state.attendanceTypes, state.statsByPeriod)}>
+            </rekap-chart>
+        </div>
+    </template>
+
+    <script>
+        import _, {isUndefined} from "lodash";
+        import moment from "moment";
+        import localization from 'moment/locale/id';
+        import RekapChart from './rekap-chart.riot';
+        import {v4 as uuidv4} from 'uuid';
+
+        export default {
+            components: {
+                RekapChart,
+            },
+            state: {
+                classItems: [],
+                academicYears: [],
+                students: undefined,
+                selectedClass: '',
+                selectedAcademicYear: '',
+                componentUpdateSource: undefined,
+                isSelectAcademicLoading: '',
+                isSelectClassLoading: '',
+                isStudentListLoading: '',
+                loadingData: '',
+                selectedAttendanceDateFrom: '',
+                selectedAttendanceDateTo: '',
+                attendanceTypes: [],
+                stats: undefined,
+                statsByPeriod: undefined,
+                updateID: "",
+            },
+            onMounted(props, state) {
+                // right after the component is mounted on the page
+                this.loadClasses();
+                this.loadAcademicYears();
+                this.loadAttendanceTypes();
+                const attendanceDateFrom = document.getElementById('attendance_date_from');
+                const attendanceDateTo = document.getElementById('attendance_date_to');
+                const datepickerFrom = new Datepicker(attendanceDateFrom, {
+                    // ...options
+                    format: 'yyyy-mm-dd',
+                    todayHighlight: true,
+                });
+                const datepickerTo = new Datepicker(attendanceDateTo, {
+                    // ...options
+                    format: 'yyyy-mm-dd',
+                    todayHighlight: true,
+                });
+                let p = this;
+                attendanceDateFrom.addEventListener('hide', function (e) {
+                    if (e.target.value) {
+                        p.update({
+                            selectedAttendanceDateFrom: e.target.value,
+                        })
+                    }
+                })
+                attendanceDateTo.addEventListener('hide', function (e) {
+                    console.log(e.target.value)
+                    if (e.target.value) {
+                        p.update({
+                            selectedAttendanceDateTo: e.target.value,
+                        })
+                    }
+                })
+            },
+            onChangeAcademic(e) {
+                this.update({
+                    selectedAcademicYear: e.target.value,
+                })
+            },
+            onChangeClass(e) {
+                this.update({
+                    selectedClass: e.target.value,
+                })
+            },
+            loadAcademicYears() {
+                this.update({
+                    isSelectAcademicLoading: 'loading',
+                })
+                axios.get(`/api/v1/academic-years`)
+                    .then(res => {
+                        this.update({
+                            academicYears: res.data.items,
+                        })
+                    }).catch(e => {
+                    console.log(e)
+                }).finally(() => {
+                    this.update({
+                        isSelectAcademicLoading: '',
+                    })
+                })
+            },
+            loadClasses() {
+                this.update({
+                    isSelectClassLoading: 'loading',
+                })
+                axios.get(`/api/v1/classes`)
+                    .then(res => {
+                        this.update({
+                            classItems: res.data.items,
+                        })
+                    }).catch(e => {
+                    console.log(e);
+                }).finally(() => {
+                    this.update({
+                        isSelectClassLoading: '',
+                    })
+                })
+            },
+            loadAttendanceTypes() {
+                axios.get(`/api/v1/attendance/types`)
+                    .then(res => {
+                        this.update({
+                            attendanceTypes: res.data.items,
+                        })
+                    }).catch(e => {
+                    console.log(e)
+                }).finally(() => {
+                })
+            },
+            showStats(e) {
+                e.preventDefault();
+                this.update({
+                    loadingData: 'loading',
+                    stats: undefined,
+                })
+                this.loadStats(this.state.selectedAcademicYear, this.state.selectedClass, this.state.selectedAttendanceDateFrom, this.state.selectedAttendanceDateTo);
+            },
+            loadStats(academicID, classLabel, attendanceDateFrom, attendanceDateTo) {
+                if (academicID == "" || classLabel == "" || attendanceDateFrom == "" || attendanceDateTo == "") {
+                    return []
+                }
+                const fetch = async () => {
+
+                    await axios.get(`/api/v1/student/attendance/stats`, {
+                        params: {
+                            'academicYearID': academicID,
+                            'classLabel': classLabel,
+                            'from': attendanceDateFrom,
+                            'to': attendanceDateTo,
+                            'type': 'CLASSICAL_STATS'
+                        }
+                    })
+                        .then(res => {
+                            let stats = res.data.classical ? res.data.classical.items : [];
+                            // group by
+                            let statByPeriod = _.groupBy(stats, stat => {
+                                let pd = new Date(stat.attendanceDate)
+                                console.log(stat.attendanceDate);
+                                if (isNaN(pd)) {
+                                    console.log("nan datenya")
+                                }
+                                let m = pd.getMonth() + 1;
+                                let key = pd.getFullYear().toString() + "-" + m.toString();
+                                return key
+                            })
+                            this.update({
+                                stats: res.data.classical ? res.data.classical.items : [],
+                                statsByPeriod: statByPeriod,
+                            })
+                        }).catch(e => {
+                            console.log(e)
+                        }).finally(() => {
+                            this.update({
+                                loadingData: '',
+                            })
+                        })
+                }
+                fetch()
+            },
+            humanizeDateFragments(d) {
+                let pd = moment(d).locale("id", localization)
+                return pd.format('MMMM YYYY')
+            },
+            groupByAttendanceDate(statsByKey) {
+                let result = _.groupBy(statsByKey, o => {
+                    return o.attendanceDate
+                })
+                return result;
+            },
+            groupByAttendanceID(statsByKey) {
+                let result = _.groupBy(statsByKey, o => {
+                    return o.item.attendanceID
+                })
+                return result;
+            },
+            getStatCountsByType(stats, tid) {
+                let found = _.find(stats, function (o) {
+                    return o.item.attendanceID == tid
+                })
+                if (!isUndefined(found)) {
+                    return found.item.counts;
+                }
+                return "-";
+            },
+            totalStudentsByStats(stats) {
+                return _.reduce(stats, function (sum, o) {
+                    return sum + o.item.counts;
+                }, 0)
+            },
+            percentage(count, total) {
+                if (total < 1) {
+                    return '-';
+                }
+                return +((count * 1.0 / total * 1.0) * 100.0).toFixed(2);
+            },
+            getDaysInMonth(month, year) {
+                console.log("getDays", month, year)
+                let m = parseInt(month) - 1;
+                let y = parseInt(year)
+                let date = new Date(y, m, 1);
+                let days = [];
+                while (date.getMonth() === m) {
+                    let x = new Date(date)
+                    let formattedDate = moment(x).format('YYYY-MM-DD');
+                    days.push(formattedDate);
+                    date.setDate(date.getDate() + 1);
+                }
+                return days;
+            },
+            map(items, key) {
+                return _.map(items, key)
+            },
+            colorByAttendanceID(id) {
+                const colors = {
+                    "4be1482d-073b-4bad-8310-5de58ea439a2": 'rgba(255, 255, 0, 1)',
+                    "642b270b-d312-4181-b478-716908bb80bb": 'rgba(255, 0, 0, 1)',
+                    "7e79c868-4d31-4a49-9649-bdb82f3f0d3d": 'rgba(0, 255, 0, 1)',
+                    "c3adebf0-7a50-4c25-a0b1-48d5c9dd35ac": 'rgba(25, 64, 39, 0.24)',
+                }
+                return colors[id]
+            },
+            id() {
+                return uuidv4();
+            },
+            buildChartData(period, attendanceTypes, statsByPeriod) {
+                let datasets = [];
+                let attendanceByIDs = this.groupByAttendanceID(statsByPeriod[period])
+                let parts = period.split("-")
+                // build dates asc
+                let dateDimensions = this.getDaysInMonth(parts[1], parts[0])
+                let chartObj = {
+                    labels: dateDimensions,
+                    datasets: [],
+                }
+                for (let i = 0; i < attendanceTypes.length; i++) {
+                    let datasetItem = {
+                        label: attendanceTypes[i].label,
+                        data: [],
+                        borderColor: this.colorByAttendanceID(attendanceTypes[i].ID),
+                        backgroundColor: this.colorByAttendanceID(attendanceTypes[i].ID),
+                    }
+                    let found = attendanceByIDs[attendanceTypes[i].ID]
+                    if (!isUndefined(found)) {
+                        for (let j = 0; j < dateDimensions.length; j++) {
+                            datasetItem.data.push(0);
+                            for (let k = 0; k < found.length; k++) {
+                                if (found[k].attendanceDate == dateDimensions[j]) {
+                                    datasetItem.data[j] = found[k].item.counts;
+                                }
+                            }
+                        }
+                        datasets.push(datasetItem)
+                    }
+                }
+                chartObj.datasets = datasets
+                console.log("chart", chartObj)
+                return chartObj;
+
+            }
+        }
+    </script>
+</rekap-klasikal>

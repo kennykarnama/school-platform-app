@@ -1,0 +1,1 @@
+alter table student_attendance add column attendance_type_id UUID;

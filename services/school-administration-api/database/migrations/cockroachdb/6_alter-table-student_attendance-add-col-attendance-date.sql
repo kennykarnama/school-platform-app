@@ -1,0 +1,1 @@
+ALTER TABLE student_attendance ADD COLUMN attendance_date DATE;

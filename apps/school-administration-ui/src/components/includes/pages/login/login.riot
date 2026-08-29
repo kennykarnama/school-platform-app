@@ -1,0 +1,92 @@
+<login>
+    <div class="columns">
+
+        <template if={state.showToast}>
+            <template if={state.success}>
+                <div class="toast toast-success">
+                    <button class="btn btn-clear float-right" onclick={closeToast}></button>
+                    {state.toastMessage}
+                </div>
+            </template>
+
+            <template if={!state.success}>
+                <div class="toast toast-error" style="text-align: center;">
+                    <button class="btn btn-clear float-right" onclick={closeToast}></button>
+                    {state.toastMessage}
+                </div>
+            </template>
+        </template>
+    </div>
+
+    <div class="columns mt-2">
+        <div class="column">
+
+        </div>
+        <div class="column">
+            <form>
+                <div class="has-icon-left">
+                    <input class="form-input" placeholder="NIP" type="text" id="nip">
+                    <i class="form-icon icon icon-people"></i>
+                </div>
+                <div class="has-icon-left mt-2">
+                    <input class="form-input" placeholder="Password" type="password" id="password">
+                    <i class="form-icon icon icon-link"></i>
+                </div>
+                <!-- form structure -->
+                <button class="btn btn-primary input-group-btn mt-2 {state.loadingButton}" type="button" onclick="{login}">Login</button>
+            </form>
+
+        </div>
+        <div class="column">
+
+        </div>
+    </div>
+
+
+    <script>
+        import {router} from "@riotjs/route";
+
+        export default {
+            state: {
+                toastMessage: '',
+                success: undefined,
+                loadingButton: '',
+            },
+            login() {
+                let nip = document.getElementById("nip").value
+                let password = document.getElementById("password").value
+                let payload = {
+                    alternativeId: nip,
+                    password: password,
+                }
+                this.update({
+                    loadingButton: 'loading',
+                })
+                axios({
+                    method: 'POST',
+                    url: '/api/v1/teacher/login',
+                    data: payload,
+                }).then((resp) => {
+                    router.push('/')
+                }).catch(e => {
+                    console.log("error", e)
+                    this.update({
+                        toastMessage: e.response.data.message,
+                        success: false,
+                        showToast: true,
+                    })
+                }).finally(() => {
+                    this.update({
+                        loadingButton: '',
+                    })
+                });
+            },
+            closeToast() {
+                this.update({
+                    showToast: false,
+                })
+            }
+        }
+
+    </script>
+</login>
