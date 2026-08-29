@@ -35,6 +35,22 @@ migrate() {
     done
 }
 
+seed() {
+  database="$1"
+  seed_dir="$2"
+
+  if [ ! -d "$seed_dir" ]; then
+    return
+  fi
+
+  find "$seed_dir" -maxdepth 1 -type f -name '*.sql' -exec basename {} \; |
+    sort -n |
+    while IFS= read -r seed_file; do
+      echo "Loading $database/$seed_file"
+      sql "$database" --file="$seed_dir/$seed_file" >/dev/null
+    done
+}
+
 cockroach sql --insecure --host="$cockroach_host" --execute="
   CREATE DATABASE IF NOT EXISTS school_administration;
   CREATE DATABASE IF NOT EXISTS school_user;
@@ -43,7 +59,7 @@ cockroach sql --insecure --host="$cockroach_host" --execute="
 migrate school_administration /workspace/services/school-administration-api/database/migrations/cockroachdb
 migrate school_user /workspace/services/school-user-api/database/migrations/cockroachdb
 
-echo "Loading administration seed data"
-sql school_administration --file=/workspace/services/school-administration-api/database/seeders/cockroachdb/1_seed-academic_year.sql >/dev/null
+seed school_administration /workspace/services/school-administration-api/database/seeders/cockroachdb
+seed school_user /workspace/services/school-user-api/database/seeders/cockroachdb
 
 echo "Local databases are ready"

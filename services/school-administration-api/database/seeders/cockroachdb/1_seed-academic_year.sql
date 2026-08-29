@@ -1,5 +1,6 @@
-INSERT INTO academic_year (label)
-SELECT 'TEST TA / SEMESTER 2'
-WHERE NOT EXISTS (
-    SELECT 1 FROM academic_year WHERE label = 'TEST TA / SEMESTER 2'
-);
+DELETE FROM academic_year WHERE label = 'TEST TA / SEMESTER 2';
+
+INSERT INTO academic_year (id, label, created_at) VALUES
+    ('10000000-0000-4000-8000-000000000001', '2025/2026 - Semester 2', '2026-01-05T00:00:00Z'),
+    ('10000000-0000-4000-8000-000000000002', '2026/2027 - Semester 1', '2026-07-13T00:00:00Z')
+ON CONFLICT (id) DO NOTHING;

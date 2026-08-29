@@ -25,6 +25,15 @@ make deps-up
 
 `make deps-up` starts CockroachDB and Redis, creates both local databases, applies pending migrations, and loads idempotent seed data.
 
+Local development logins:
+
+| Service | Username | Password |
+| --- | --- | --- |
+| Administration UI/API | `teacher.demo` | `school123` |
+| User API | `demo.user` | `school123` |
+
+The administration seed also includes two academic years, four attendance types, six students in `KELAS I A`, and attendance records for August 24–26, 2026. These credentials and records are for local development only.
+
 Run the complete development stack:
 
 ```sh
@@ -63,4 +72,3 @@ make db-reset
 ```
 
 The checked-in files under `config/local` contain development-only values. Production deployments must provide their own database TLS settings and secrets.
-
