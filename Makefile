@@ -6,7 +6,7 @@ setup:
 	npm --prefix apps/school-administration-ui ci
 
 deps-up:
-	docker compose up -d --wait cockroach redis
+	docker compose up -d --wait cockroach
 	docker compose run --rm db-init
 
 deps-down:
@@ -14,7 +14,7 @@ deps-down:
 
 db-reset:
 	docker compose down --volumes --remove-orphans
-	docker compose up -d --wait cockroach redis
+	docker compose up -d --wait cockroach
 	docker compose run --rm db-init
 
 db-migrate-administration:

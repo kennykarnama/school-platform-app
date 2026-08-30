@@ -12,10 +12,9 @@ import (
 	"github.com/kennykarnama/school-user-api/domain/api/user"
 	"github.com/kennykarnama/school-user-api/domain/api/userauth"
 	"github.com/kennykarnama/school-user-api/domain/repository/user/sql"
-	"github.com/kennykarnama/school-user-api/domain/repository/userauth/redis"
+	userAuthSQL "github.com/kennykarnama/school-user-api/domain/repository/userauth/sql"
 	userService "github.com/kennykarnama/school-user-api/domain/service/user"
 	userAuthService "github.com/kennykarnama/school-user-api/domain/service/userauth"
-	"github.com/kennykarnama/school-user-api/util"
 	"github.com/kennykarnama/school-user-api/util/dbconn"
 	"github.com/sirupsen/logrus"
 )
@@ -40,15 +39,12 @@ func main() {
 	}
 
 	db := dbconn.InitGorm()
-	redisPool := dbconn.InitRedis()
-
-	redisWrapper := util.NewRedisWrapper(redisPool)
 
 	userSqlRepository := sql.NewMysqlRepository(db)
-	userAuthRedisRepository := redis.NewRepository(redisWrapper)
+	userAuthRepository := userAuthSQL.NewRepository(db)
 
 	userService := userService.NewService(userSqlRepository)
-	userAuthService := userAuthService.NewService(cfg, userService, userAuthRedisRepository)
+	userAuthService := userAuthService.NewService(cfg, userService, userAuthRepository)
 
 	v := validator.New()
 	userHandler := user.NewHandler(ctx, userService, v)

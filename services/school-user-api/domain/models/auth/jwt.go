@@ -9,9 +9,9 @@ import (
 type JWTMetadata struct {
 	AccessToken           string `json:"accessToken"`
 	RefreshToken          string `json:"refreshToken"`
-	TokenID               string `json:"refreshTokenID" redis:"refreshTokenID"`
-	AccessTokenExpiresIn  int64  `json:"accessTokenExpiresIn" redis:"accessTokenExpiresIn"`
-	RefreshTokenExpiresIn int64  `json:"refreshTokenExpiresAt" redis:"refreshTokenExpiresIn"`
+	TokenID               string `json:"refreshTokenID"`
+	AccessTokenExpiresIn  int64  `json:"accessTokenExpiresIn"`
+	RefreshTokenExpiresIn int64  `json:"refreshTokenExpiresAt"`
 }
 
 func (jm *JWTMetadata) AccessTokenExpiresTime() time.Time {
@@ -28,11 +28,6 @@ type TokenClaims struct {
 	DeviceID   string `json:"did,omitempty"`
 	DeviceName string `json:"dn,omitempty"`
 	jwt.StandardClaims
-}
-
-type JWTSessionByID struct {
-	UserID    string `redis:"userID"`
-	ExpiresIn int64  `redis:"expiresIn"`
 }
 
 func (tc *TokenClaims) Expired() bool {

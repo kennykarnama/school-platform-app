@@ -16,8 +16,6 @@ export DB_NAME=
 export DB_CLUSTER=
 export ACCESS_TOKEN_SECRET=kenny
 export REFRESH_TOKEN_SECRET=kenny_juga
-export REDIS_HOST=localhost
-export REDIS_PORT=6379
 ```
 
 exec
@@ -28,4 +26,3 @@ set -o allexport; source .sh.env; set +o allexport
 # API Contracts
 
 To Do
-

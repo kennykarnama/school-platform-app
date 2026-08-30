@@ -23,7 +23,7 @@ make setup
 make deps-up
 ```
 
-`make deps-up` starts CockroachDB and Redis, creates both local databases, applies pending migrations, and loads idempotent seed data.
+`make deps-up` starts CockroachDB, creates both local databases, applies pending migrations, and loads idempotent seed data.
 
 Schema migrations are managed by [Goose](https://github.com/pressly/goose). The pinned Goose runner is built automatically by Docker, so a host installation is not required. Goose records applied versions in each database's `goose_db_version` table; seed SQL remains separate from schema migrations.
 
@@ -76,7 +76,6 @@ Local endpoints:
 - User API: http://localhost:8082
 - CockroachDB SQL: localhost:26257
 - CockroachDB Console: http://localhost:8088
-- Redis: localhost:6379
 
 ## Verification and cleanup
 
@@ -86,13 +85,15 @@ make build
 make deps-down
 ```
 
-To delete only this project's local CockroachDB and Redis volumes and rebuild the databases:
+To delete only this project's local CockroachDB volume and rebuild the databases:
 
 ```sh
 make db-reset
 ```
 
 The checked-in files under `config/local` contain development-only values. Production deployments must provide their own database TLS settings and secrets.
+
+The user API stores JWT session and revocation state in the `school_user.jwt_session` table. Redis is not required.
 
 ## Hosted CockroachDB
 
