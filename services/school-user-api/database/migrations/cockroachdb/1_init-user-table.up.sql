@@ -1,4 +1,5 @@
-CREATE TABLE users (
+-- +goose Up
+CREATE TABLE IF NOT EXISTS users (
     id UUID DEFAULT gen_random_uuid() primary key ,
     alternative_id STRING NOT NULL UNIQUE,
     password STRING NOT NULL,
@@ -7,3 +8,6 @@ CREATE TABLE users (
     updated_at TIMESTAMPTZ NOT NULL,
     deleted_at TIMESTAMPTZ
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS users;

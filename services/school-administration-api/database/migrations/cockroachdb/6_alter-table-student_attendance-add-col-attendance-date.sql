@@ -1,1 +1,5 @@
-ALTER TABLE student_attendance ADD COLUMN attendance_date DATE;
+-- +goose Up
+ALTER TABLE student_attendance ADD COLUMN IF NOT EXISTS attendance_date DATE;
+
+-- +goose Down
+ALTER TABLE student_attendance DROP COLUMN IF EXISTS attendance_date;

@@ -35,7 +35,9 @@ services:
       retries: 20
 
   db-init:
-    image: cockroachdb/cockroach:v26.2.2
+    build:
+      context: .
+      dockerfile: docker/goose-cockroach/Dockerfile
     entrypoint: ["/bin/sh", "/workspace/scripts/init-databases.sh"]
     depends_on:
       cockroach:
@@ -43,6 +45,15 @@ services:
     volumes:
       - ./:/workspace:ro
     restart: "no"
+
+  goose:
+    build:
+      context: .
+      dockerfile: docker/goose-cockroach/Dockerfile
+    entrypoint: ["goose"]
+    volumes:
+      - ./:/workspace
+    profiles: ["tools"]
 
 volumes:
   cockroach-data:
