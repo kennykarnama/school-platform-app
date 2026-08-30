@@ -95,6 +95,28 @@ The checked-in files under `config/local` contain development-only values. Produ
 
 The user API stores JWT session and revocation state in the `school_user.jwt_session` table. Redis is not required.
 
+## Docker releases
+
+Pushing a semantic-version tag such as `v1.2.3` runs the release workflow in `.github/workflows/release.yml`. It verifies the monorepo, builds `linux/amd64` images, and pushes these public Docker Hub repositories:
+
+- `kennykarnama/school-administration-api`
+- `kennykarnama/school-user-api`
+- `kennykarnama/school-administration-ui`
+- `kennykarnama/school-platform-migrations`
+
+Before the first release, create those four repositories as **Public** in Docker Hub. Create a Docker Hub personal access token with read/write permission, then add it to the GitHub repository as the Actions secret `DOCKERHUB_TOKEN`.
+
+Create a stable release with:
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Stable tags publish `1.0.0`, `sha-...`, and `latest` image tags. Prerelease tags such as `v1.1.0-rc.1` publish the version and commit tags without moving `latest`.
+
+After the images are published, the workflow creates a GitHub Release containing a VM-ready `school-platform-app-v1.0.0-linux-amd64.tar.gz` archive and its SHA-256 checksum. The archive contains Compose configuration and deployment instructions; its default `IMAGE_TAG=latest` pulls the newest stable images.
+
 ## Hosted CockroachDB
 
 Both APIs accept a complete CockroachDB PostgreSQL URL through `DATABASE_URL`. It takes precedence over the individual `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`, `DB_CLUSTER`, and `DB_SSL_MODE` variables.

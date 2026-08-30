@@ -56,6 +56,11 @@ func main() {
 		},
 	}
 	r := mux.NewRouter()
+	r.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	}).Methods(http.MethodGet)
 	r.Handle("/api/v1/user", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.RegisterUser))).Methods("POST")
 	r.Handle("/api/v1/user/auth", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userAuthHandler.Login))).Methods("POST")
 	r.Handle("/api/v1/user/auth/token/validate", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userAuthHandler.ValidateToken))).Methods("POST")

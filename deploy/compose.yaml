@@ -1,0 +1,58 @@
+name: school-platform
+
+services:
+  migrations:
+    image: docker.io/kennykarnama/school-platform-migrations:${IMAGE_TAG:-latest}
+    pull_policy: always
+    environment:
+      ADMIN_DATABASE_URL: ${ADMIN_DATABASE_URL:?ADMIN_DATABASE_URL is required}
+      USER_DATABASE_URL: ${USER_DATABASE_URL:?USER_DATABASE_URL is required}
+    restart: "no"
+
+  school-administration-api:
+    image: docker.io/kennykarnama/school-administration-api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8080"
+      SERVICE_NAME: school-administration-api
+      DATABASE_URL: ${ADMIN_DATABASE_URL:?ADMIN_DATABASE_URL is required}
+      ENABLE_AUTH: ${ADMIN_ENABLE_AUTH:-true}
+      SESSION_TTL: ${ADMIN_SESSION_TTL:-3600}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      DB_LOG_MODE: ${DB_LOG_MODE:-false}
+    ports:
+      - "${ADMIN_API_PORT:-8081}:8080"
+    restart: unless-stopped
+
+  school-user-api:
+    image: docker.io/kennykarnama/school-user-api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8080"
+      SERVICE_NAME: school-user-api
+      DATABASE_URL: ${USER_DATABASE_URL:?USER_DATABASE_URL is required}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:?ACCESS_TOKEN_SECRET is required}
+      ACCESS_TOKEN_EXPIRATION: ${ACCESS_TOKEN_EXPIRATION:-15m}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:?REFRESH_TOKEN_SECRET is required}
+      REFRESH_TOKEN_EXPIRATION: ${REFRESH_TOKEN_EXPIRATION:-168h}
+      ENABLE_EMAIL_CONFIRMATION: ${ENABLE_EMAIL_CONFIRMATION:-false}
+      DB_LOG_MODE: ${DB_LOG_MODE:-false}
+    ports:
+      - "${USER_API_PORT:-8082}:8080"
+    restart: unless-stopped
+
+  school-administration-ui:
+    image: docker.io/kennykarnama/school-administration-ui:${IMAGE_TAG:-latest}
+    pull_policy: always
+    depends_on:
+      school-administration-api:
+        condition: service_healthy
+    ports:
+      - "${UI_PORT:-3000}:80"
+    restart: unless-stopped

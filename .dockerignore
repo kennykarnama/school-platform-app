@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+**/.DS_Store
+**/node_modules
+**/dist
+**/coverage
+**/.nyc_output
+**/*.log
+**/*.test
+.env
+.env.*
+!.env.example

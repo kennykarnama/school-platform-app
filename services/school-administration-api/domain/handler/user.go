@@ -9,14 +9,16 @@ import (
 )
 
 type UserHandler struct {
-	svc      user.Service
-	validate *validator.Validate
+	svc          user.Service
+	validate     *validator.Validate
+	cookieSecure bool
 }
 
-func NewUserHandler(svc user.Service, validate *validator.Validate) *UserHandler {
+func NewUserHandler(svc user.Service, validate *validator.Validate, cookieSecure bool) *UserHandler {
 	return &UserHandler{
-		svc:      svc,
-		validate: validate,
+		svc:          svc,
+		validate:     validate,
+		cookieSecure: cookieSecure,
 	}
 }
 
@@ -53,8 +55,9 @@ func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Value:    userSession.Token,
 		Path:     "/",
 		Expires:  expiredAt,
-		SameSite: http.SameSiteNoneMode,
-		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   uh.cookieSecure,
 	})
 	resp := &LoginResponse{Token: userSession.Token}
 	ResponseJson(w, resp, 201)

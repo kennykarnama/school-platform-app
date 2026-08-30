@@ -55,7 +55,7 @@ func main() {
 
 	userRepo := user.NewMySqlRepository(dbconn)
 	userSvc := user2.NewService(userRepo, cfg)
-	userHandler := handler.NewUserHandler(userSvc, v)
+	userHandler := handler.NewUserHandler(userSvc, v, cfg.SessionCookieSecure)
 	setupRepository := setupRepo.NewSQLRepository(dbconn)
 	setupService := setupSvc.NewService(setupRepository, classSvc)
 	setupHandler := handler.NewSetupHandler(setupService)
@@ -76,9 +76,12 @@ func main() {
 		},
 	}
 
-	authMiddleware := interceptor.NewAuth(userSvc, []string{"/api/v1/teacher/login"})
+	authMiddleware := interceptor.NewAuth(userSvc, []string{"/api/v1/teacher/login", "/healthz"})
 
 	r := mux.NewRouter()
+	r.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		handler.ResponseJson(w, map[string]string{"status": "ok"}, http.StatusOK)
+	}).Methods(http.MethodGet)
 	r.Handle("/api/v1/student/attendance/register", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.RegisterStudent))).Methods("POST")
 	r.Handle("/api/v1/student/attendance/submit", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.SubmitAttendance))).Methods("POST")
 	r.Handle("/api/v1/student/attendance/list", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.Students))).Methods("GET")
