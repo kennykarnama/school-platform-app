@@ -18,6 +18,9 @@
     <route path="/#about">
         <about></about>
     </route>
+    <route path="/#setup">
+        <setup></setup>
+    </route>
     <route path="/#absensi/stats-classical">
         <rekap-klasikal></rekap-klasikal>
     </route>
@@ -33,6 +36,7 @@
         import About from '../../includes/pages/about/about.riot';
         import Rekap from '../../includes/pages/absensi/rekap/rekap.riot';
         import RekapKlasikal from '../../includes/pages/absensi/rekap/rekap-klasikal.riot';
+        import Setup from '../../includes/pages/setup/setup.riot';
         import lazy from "@riotjs/lazy";
 
         export default {
@@ -43,6 +47,7 @@
                 About,
                 Rekap,
                 RekapKlasikal,
+                Setup,
                 login: lazy(() => import('../../includes/pages/login/login.riot')),
                 AbsensiTransferForm
             },

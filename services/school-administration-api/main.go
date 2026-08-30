@@ -16,10 +16,12 @@ import (
 	"github.com/kennykarnama/school-adminstration-api/domain/repository/attendancetype"
 	"github.com/kennykarnama/school-adminstration-api/domain/repository/class"
 	"github.com/kennykarnama/school-adminstration-api/domain/repository/core"
+	setupRepo "github.com/kennykarnama/school-adminstration-api/domain/repository/setup"
 	academicYearSvc "github.com/kennykarnama/school-adminstration-api/domain/service/academicyear"
 	attendanceTypeSvc "github.com/kennykarnama/school-adminstration-api/domain/service/attendancetype"
 	classSvc "github.com/kennykarnama/school-adminstration-api/domain/service/class"
 	coreSvc "github.com/kennykarnama/school-adminstration-api/domain/service/core"
+	setupSvc "github.com/kennykarnama/school-adminstration-api/domain/service/setup"
 	"github.com/kennykarnama/school-adminstration-api/util/dbconn"
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
@@ -54,6 +56,9 @@ func main() {
 	userRepo := user.NewMySqlRepository(dbconn)
 	userSvc := user2.NewService(userRepo, cfg)
 	userHandler := handler.NewUserHandler(userSvc, v)
+	setupRepository := setupRepo.NewSQLRepository(dbconn)
+	setupService := setupSvc.NewService(setupRepository, classSvc)
+	setupHandler := handler.NewSetupHandler(setupService)
 
 	hostName, err := os.Hostname()
 	if err != nil {
@@ -86,6 +91,8 @@ func main() {
 
 	r.Handle("/api/v1/teacher/login", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.Login))).Methods("POST")
 	r.Handle("/api/v1/teacher/session/validate", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.Validate))).Methods("GET")
+	r.Handle("/api/v1/setup/preview", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Preview))).Methods("POST")
+	r.Handle("/api/v1/setup/apply", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Apply))).Methods("POST")
 
 	if cfg.EnableAuth {
 		logrus.Infof("auth enabled")

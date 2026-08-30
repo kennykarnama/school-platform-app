@@ -34,6 +34,15 @@ Local development logins:
 
 The administration seed also includes two academic years, four attendance types, six students in `KELAS I A`, and attendance records for August 24–26, 2026. These credentials and records are for local development only.
 
+After signing in, open **Data Awal** in the administration UI to add or update academic years, attendance types, students, and class assignments. Student data can be entered in the form or imported from CSV with these exact headers:
+
+```csv
+alternativeID,name,academicYearLabel,classLabel
+STU-007,Nama Siswa,2026/2027 - Semester 1,KELAS I A
+```
+
+Use **Validasi & Pratinjau** before applying. Imports upsert matching records and never delete records omitted from the form or CSV. A student is matched by alternative ID, and each student may have one active class assignment per academic year. The API exposes the authenticated `POST /api/v1/setup/preview` and `POST /api/v1/setup/apply` endpoints for the same workflow.
+
 Run the complete development stack:
 
 ```sh

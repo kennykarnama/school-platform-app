@@ -1,0 +1,237 @@
+<setup>
+    <div class="container setup-page">
+        <h2>Data Awal</h2>
+        <p class="text-gray">Kelola tahun ajaran, jenis kehadiran, dan penempatan siswa. Data yang tidak dicantumkan tidak akan dihapus.</p>
+
+        <div if={state.message} class="toast toast-{state.success ? 'success' : 'error'}">
+            <button class="btn btn-clear float-right" onclick={clearMessage}></button>
+            {state.message}
+        </div>
+
+        <section>
+            <div class="section-title">
+                <h4>Tahun Ajaran</h4>
+                <button class="btn btn-sm" onclick={addAcademicYear}>Tambah</button>
+            </div>
+            <div class="columns row-gap" each={(item, index) in state.academicYears}>
+                <div class="column col-9 col-sm-12">
+                    <input class="form-input" value={item.label} placeholder="Contoh: 2026/2027 - Semester 1" oninput={(event) => editAcademicYear(index, event)}>
+                </div>
+                <div class="column col-3 col-sm-12">
+                    <button class="btn btn-error btn-sm" onclick={() => removeAcademicYear(index)}>Keluarkan</button>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-title">
+                <h4>Jenis Kehadiran</h4>
+                <button class="btn btn-sm" onclick={addAttendanceType}>Tambah</button>
+            </div>
+            <div class="columns row-gap" each={(item, index) in state.attendanceTypes}>
+                <div class="column col-9 col-sm-12">
+                    <input class="form-input" value={item.label} placeholder="Contoh: Sakit" oninput={(event) => editAttendanceType(index, event)}>
+                </div>
+                <div class="column col-3 col-sm-12">
+                    <button class="btn btn-error btn-sm" onclick={() => removeAttendanceType(index)}>Keluarkan</button>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-title">
+                <div>
+                    <h4>Siswa dan Kelas</h4>
+                    <small class="text-gray">Maksimal 5.000 baris per proses.</small>
+                </div>
+                <div>
+                    <button class="btn btn-sm" onclick={downloadTemplate}>Unduh Template CSV</button>
+                    <label class="btn btn-sm btn-primary file-button">
+                        Impor CSV
+                        <input type="file" accept=".csv,text/csv" onchange={importCSV}>
+                    </label>
+                    <button class="btn btn-sm" onclick={addStudent}>Tambah</button>
+                </div>
+            </div>
+            <div class="table-scroll">
+                <table class="table table-striped">
+                    <thead><tr><th>ID Alternatif</th><th>Nama</th><th>Tahun Ajaran</th><th>Kelas</th><th></th></tr></thead>
+                    <tbody>
+                        <tr each={(item, index) in state.students}>
+                            <td><input class="form-input" value={item.alternativeID} oninput={(event) => editStudent(index, 'alternativeID', event)}></td>
+                            <td><input class="form-input" value={item.name} oninput={(event) => editStudent(index, 'name', event)}></td>
+                            <td><input class="form-input" value={item.academicYearLabel} list="setup-years" oninput={(event) => editStudent(index, 'academicYearLabel', event)}></td>
+                            <td>
+                                <select class="form-select" onchange={(event) => editStudent(index, 'classLabel', event)}>
+                                    <option value="">Pilih kelas</option>
+                                    <option each={classItem in state.classes} value={classItem.label} selected={classItem.label === item.classLabel}>{classItem.label}</option>
+                                </select>
+                            </td>
+                            <td><button class="btn btn-error btn-sm" onclick={() => removeStudent(index)}>Keluarkan</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <datalist id="setup-years"><option each={item in state.academicYears} value={item.label}></option></datalist>
+            </div>
+        </section>
+
+        <div class="action-bar">
+            <button class="btn btn-primary loading-{state.loading}" disabled={state.loading} onclick={preview}>Validasi & Pratinjau</button>
+            <button class="btn btn-success" disabled={!state.preview || !state.preview.valid || state.loading} onclick={apply}>Terapkan Data</button>
+        </div>
+
+        <section if={state.preview}>
+            <h4>Hasil Pratinjau</h4>
+            <div class="toast toast-{state.preview.valid ? 'success' : 'error'}">
+                {state.preview.valid ? 'Data valid dan siap diterapkan.' : 'Perbaiki kesalahan sebelum menerapkan data.'}
+                Buat: {state.preview.summary.create}, ubah: {state.preview.summary.update}, tetap: {state.preview.summary.unchanged}.
+            </div>
+            <div class="table-scroll">
+                <table class="table table-striped">
+                    <thead><tr><th>Jenis</th><th>Baris</th><th>Kunci</th><th>Aksi</th><th>Keterangan</th></tr></thead>
+                    <tbody>
+                        <tr each={item in state.preview.items}>
+                            <td>{entityLabel(item.entity)}</td>
+                            <td>{item.index + 1}</td>
+                            <td>{item.key}</td>
+                            <td><span class="label label-{actionClass(item.action)}">{actionLabel(item.action)}</span></td>
+                            <td>{(item.errors || []).join('; ')}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <style>
+        setup section { margin-top: 2rem; }
+        setup .section-title { align-items: center; display: flex; justify-content: space-between; margin-bottom: .6rem; }
+        setup .section-title h4 { margin: 0; }
+        setup .row-gap { margin-bottom: .4rem; }
+        setup .action-bar { display: flex; gap: .5rem; margin-top: 2rem; }
+        setup .table-scroll { overflow-x: auto; }
+        setup table { min-width: 760px; }
+        setup .file-button { margin: 0 .35rem; }
+        setup .file-button input { display: none; }
+    </style>
+
+    <script>
+        const CSV_HEADERS = ['alternativeID', 'name', 'academicYearLabel', 'classLabel']
+        const blankStudent = () => ({alternativeID: '', name: '', academicYearLabel: '', classLabel: ''})
+
+        export default {
+            state: {
+                academicYears: [],
+                attendanceTypes: [],
+                students: [blankStudent()],
+                classes: [],
+                preview: null,
+                loading: false,
+                message: '',
+                success: false,
+            },
+            onMounted() {
+                Promise.all([
+                    axios.get('/api/v1/academic-years'),
+                    axios.get('/api/v1/attendance/types'),
+                    axios.get('/api/v1/classes'),
+                ]).then(([years, types, classes]) => this.update({
+                    academicYears: (years.data.items || []).map(item => ({label: item.label})),
+                    attendanceTypes: (types.data.items || []).map(item => ({label: item.label})),
+                    classes: classes.data.items || [],
+                })).catch(error => this.fail(error, 'Data referensi tidak dapat dimuat'))
+            },
+            changed() { this.update({preview: null, message: ''}) },
+            addAcademicYear(event) { event.preventDefault(); this.state.academicYears.push({label: ''}); this.changed() },
+            removeAcademicYear(index) { this.state.academicYears.splice(index, 1); this.changed() },
+            editAcademicYear(index, event) { this.state.academicYears[index].label = event.target.value; this.changed() },
+            addAttendanceType(event) { event.preventDefault(); this.state.attendanceTypes.push({label: ''}); this.changed() },
+            removeAttendanceType(index) { this.state.attendanceTypes.splice(index, 1); this.changed() },
+            editAttendanceType(index, event) { this.state.attendanceTypes[index].label = event.target.value; this.changed() },
+            addStudent(event) { event.preventDefault(); this.state.students.push(blankStudent()); this.changed() },
+            removeStudent(index) { this.state.students.splice(index, 1); this.changed() },
+            editStudent(index, field, event) { this.state.students[index][field] = event.target.value; this.changed() },
+            payload() {
+                const nonEmpty = item => Object.values(item).some(value => String(value || '').trim())
+                return {
+                    academicYears: this.state.academicYears.filter(nonEmpty),
+                    attendanceTypes: this.state.attendanceTypes.filter(nonEmpty),
+                    students: this.state.students.filter(nonEmpty),
+                }
+            },
+            preview(event) {
+                event.preventDefault()
+                this.update({loading: true, message: ''})
+                axios.post('/api/v1/setup/preview', this.payload())
+                    .then(response => this.update({preview: response.data}))
+                    .catch(error => this.fail(error, 'Pratinjau gagal dibuat'))
+                    .finally(() => this.update({loading: false}))
+            },
+            apply(event) {
+                event.preventDefault()
+                if (!this.state.preview || !this.state.preview.valid) return
+                if (!window.confirm('Terapkan data awal ini? Data yang tidak tercantum tidak akan dihapus.')) return
+                this.update({loading: true, message: ''})
+                axios.post('/api/v1/setup/apply', this.payload())
+                    .then(response => this.update({
+                        preview: response.data,
+                        success: true,
+                        message: `Data berhasil diterapkan: ${response.data.summary.create} dibuat, ${response.data.summary.update} diubah, ${response.data.summary.unchanged} tetap.`,
+                    }))
+                    .catch(error => {
+                        if (error.response && error.response.status === 422) this.update({preview: error.response.data})
+                        this.fail(error, 'Data tidak dapat diterapkan')
+                    }).finally(() => this.update({loading: false}))
+            },
+            importCSV(event) {
+                const file = event.target.files[0]
+                if (!file) return
+                const reader = new FileReader()
+                reader.onload = () => {
+                    try {
+                        const rows = this.parseCSV(String(reader.result || ''))
+                        if (!rows.length || CSV_HEADERS.some((header, index) => rows[0][index] !== header)) throw new Error(`Header harus: ${CSV_HEADERS.join(',')}`)
+                        const students = rows.slice(1).filter(row => row.some(value => value.trim())).map(row => ({
+                            alternativeID: row[0] || '', name: row[1] || '', academicYearLabel: row[2] || '', classLabel: row[3] || '',
+                        }))
+                        if (students.length > 5000) throw new Error('CSV melebihi 5.000 baris siswa')
+                        this.update({students: students.length ? students : [blankStudent()], preview: null, message: `${students.length} baris CSV dimuat`, success: true})
+                    } catch (error) { this.update({message: error.message, success: false}) }
+                    event.target.value = ''
+                }
+                reader.onerror = () => this.update({message: 'CSV tidak dapat dibaca', success: false})
+                reader.readAsText(file)
+            },
+            parseCSV(text) {
+                const rows = []; let row = []; let cell = ''; let quoted = false
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i]
+                    if (char === '"' && quoted && text[i + 1] === '"') { cell += '"'; i++ }
+                    else if (char === '"') quoted = !quoted
+                    else if (char === ',' && !quoted) { row.push(cell.trim()); cell = '' }
+                    else if ((char === '\n' || char === '\r') && !quoted) {
+                        if (char === '\r' && text[i + 1] === '\n') i++
+                        row.push(cell.trim()); rows.push(row); row = []; cell = ''
+                    } else cell += char
+                }
+                if (cell || row.length) { row.push(cell.trim()); rows.push(row) }
+                if (rows[0] && rows[0][0]) rows[0][0] = rows[0][0].replace(/^\uFEFF/, '')
+                return rows
+            },
+            downloadTemplate(event) {
+                event.preventDefault()
+                const content = `${CSV_HEADERS.join(',')}\nS-001,Nama Siswa,2026/2027 - Semester 1,KELAS I A\n`
+                const url = URL.createObjectURL(new Blob([content], {type: 'text/csv;charset=utf-8'}))
+                const link = document.createElement('a'); link.href = url; link.download = 'template-data-awal-siswa.csv'; link.click(); URL.revokeObjectURL(url)
+            },
+            fail(error, fallback) {
+                const message = error.response && error.response.data && error.response.data.message
+                this.update({message: message || fallback, success: false})
+            },
+            clearMessage() { this.update({message: ''}) },
+            entityLabel(entity) { return ({academicYear: 'Tahun ajaran', attendanceType: 'Jenis kehadiran', studentAssignment: 'Siswa/kelas', students: 'Siswa'})[entity] || entity },
+            actionLabel(action) { return ({create: 'Buat', update: 'Ubah', unchanged: 'Tetap'})[action] || '-' },
+            actionClass(action) { return ({create: 'success', update: 'warning', unchanged: 'secondary'})[action] || 'error' },
+        }
+    </script>
+</setup>
