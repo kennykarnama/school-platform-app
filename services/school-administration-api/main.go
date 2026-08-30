@@ -93,7 +93,11 @@ func main() {
 	}
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "https://intense-sea-59889.herokuapp.com"},
+		AllowedOrigins: []string{
+			"http://localhost:3000",
+			"http://127.0.0.1:3000",
+			"https://intense-sea-59889.herokuapp.com",
+		},
 		AllowCredentials: true,
 		// Enable Debugging for testing, consider disabling in production
 		Debug:          true,
