@@ -134,18 +134,27 @@ jobs:
           tar -czf "${release_dir}-linux-amd64.tar.gz" "$release_dir"
           sha256sum "${release_dir}-linux-amd64.tar.gz" > "${release_dir}-linux-amd64.tar.gz.sha256"
 
-      - name: Create GitHub Release
+      - name: Publish GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          archive="school-platform-app-${GITHUB_REF_NAME}-linux-amd64.tar.gz"
+          checksum="${archive}.sha256"
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; replacing deployment assets"
+            gh release upload "$GITHUB_REF_NAME" "$archive" "$checksum" --clobber
+            exit 0
+          fi
+
           release_flags=()
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             release_flags+=(--prerelease)
           fi
           gh release create "$GITHUB_REF_NAME" \
-            "school-platform-app-${GITHUB_REF_NAME}-linux-amd64.tar.gz" \
-            "school-platform-app-${GITHUB_REF_NAME}-linux-amd64.tar.gz.sha256" \
+            "$archive" \
+            "$checksum" \
             --verify-tag \
             --generate-notes \
             --title "School Platform ${GITHUB_REF_NAME}" \
