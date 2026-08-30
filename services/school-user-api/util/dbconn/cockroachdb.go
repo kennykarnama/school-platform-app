@@ -17,6 +17,9 @@ import (
 )
 
 type Config struct {
+	// DatabaseURL is the complete CockroachDB PostgreSQL connection URL. When set,
+	// it takes precedence over the individual DB_* connection fields.
+	DatabaseURL string `envconfig:"DATABASE_URL" default:""`
 	// MaxIdleConnection to set max idle connection pooling
 	MaxIdleConnection int `envconfig:"DB_MAX_IDLE_CONNECTION" default:"5"`
 	// MaxOpenConnection to set max open connection pooling
@@ -24,13 +27,13 @@ type Config struct {
 	// MaxLifetimeConnectionn to set max lifetime of pooling | minutes unit
 	MaxLifetimeConnection int `envconfig:"DB_MAX_LIFETIME_CONNECTION" default:"10"`
 	// Host is host of mysql service
-	Host string `envconfig:"DB_HOST" required:"true"`
+	Host string `envconfig:"DB_HOST" default:""`
 	// Port is port of mysql service
 	Port string `envconfig:"DB_PORT" required:"true" default:"26257"`
 	// Username is name of registered user in mysql service
-	Username string `envconfig:"DB_USERNAME" required:"true"`
+	Username string `envconfig:"DB_USERNAME" default:""`
 	// DBName is name of registered database in mysql service
-	DBName string `envconfig:"DB_NAME" required:"true"`
+	DBName string `envconfig:"DB_NAME" default:""`
 	// Password is password of used Username in mysql service
 	Password string `envconfig:"DB_PASSWORD" default:""`
 	Cluster  string `envconfig:"DB_CLUSTER" default:""`
@@ -40,6 +43,10 @@ type Config struct {
 }
 
 func buildDSN(cfg Config) string {
+	if cfg.DatabaseURL != "" {
+		return cfg.DatabaseURL
+	}
+
 	user := url.User(cfg.Username)
 	if cfg.Password != "" {
 		user = url.UserPassword(cfg.Username, cfg.Password)

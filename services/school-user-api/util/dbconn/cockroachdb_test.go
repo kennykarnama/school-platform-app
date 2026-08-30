@@ -55,3 +55,17 @@ func TestBuildDSNForHostedCockroach(t *testing.T) {
 		t.Fatalf("password was not preserved")
 	}
 }
+
+func TestDatabaseURLTakesPrecedence(t *testing.T) {
+	want := "postgresql://school:secret@example.cockroachlabs.cloud:26257/school_user?sslmode=verify-full"
+	got := buildDSN(Config{
+		DatabaseURL: want,
+		Host:        "ignored",
+		Port:        "1234",
+		Username:    "ignored",
+		DBName:      "ignored",
+	})
+	if got != want {
+		t.Fatalf("dsn = %q, want DATABASE_URL", got)
+	}
+}
