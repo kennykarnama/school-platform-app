@@ -57,6 +57,9 @@ jobs:
       - name: Validate release Compose configuration
         run: docker compose --env-file deploy/.env.example -f deploy/compose.yaml config --quiet
 
+      - name: Validate proxy Compose configuration
+        run: docker compose --env-file deploy/proxy/.env.example -f deploy/proxy/compose.yaml config --quiet
+
       - name: Stop verification dependencies
         if: always()
         run: docker compose down --volumes --remove-orphans
@@ -131,6 +134,7 @@ jobs:
           cp deploy/compose.yaml "$release_dir/compose.yaml"
           cp deploy/.env.example "$release_dir/.env.example"
           cp deploy/README.md "$release_dir/README.md"
+          cp -r deploy/proxy "$release_dir/proxy"
           tar -czf "${release_dir}-linux-amd64.tar.gz" "$release_dir"
           sha256sum "${release_dir}-linux-amd64.tar.gz" > "${release_dir}-linux-amd64.tar.gz.sha256"
 

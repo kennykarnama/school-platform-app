@@ -54,4 +54,6 @@ Database migrations are forward-applied before startup. Rolling application imag
 
 ## HTTPS
 
+A ready-to-use Nginx + Let's Encrypt reverse proxy is in `proxy/`. See `proxy/README.md` for setup instructions.
+
 When TLS terminates at a reverse proxy in front of the UI, set `SESSION_COOKIE_SECURE=true`. Keep it `false` only when accessing the UI directly over HTTP.
