@@ -40,14 +40,25 @@ openssl req -x509 -nodes -newkey rsa:2048 \
 
 ```sh
 docker compose up -d nginx
+```
+
+Remove the temporary certificate so Certbot can create its own directory structure:
+
+```sh
+rm -rf certbot/conf/live/"$DOMAIN" certbot/conf/archive/"$DOMAIN" certbot/conf/renewal/"$DOMAIN".conf
+```
+
+```sh
 docker compose run --rm certbot certonly \
   --webroot --webroot-path /var/www/certbot \
   -d "$DOMAIN" \
   --email "$CERT_EMAIL" \
   --agree-tos --no-eff-email
 docker compose exec nginx nginx -s reload
-docker compose up -d certbot
+docker compose up -d certbot-renew
 ```
+
+The `certbot` service uses the image's default entrypoint for one-shot commands. The `certbot-renew` service runs the renewal loop. The `certbot` service is excluded from `docker compose up` via a profile — it is only used through `docker compose run`.
 
 The ACME challenge is served over HTTP (port 80) and is not affected by the self-signed certificate.
 
@@ -61,7 +72,7 @@ docker compose run --rm certbot certificates
 
 ## Renewal
 
-The `certbot` service runs `certbot renew` every 12 hours. Certificates are valid for 90 days and renewable 30 days before expiry.
+The `certbot-renew` service runs `certbot renew` every 12 hours. Certificates are valid for 90 days and renewable 30 days before expiry.
 
 Nginx must be reloaded after a successful renewal. Add a cron job on the VM:
 
@@ -102,5 +113,5 @@ Recreate the application stack after changing ports.
 
 ```sh
 docker compose logs -f nginx
-docker compose logs certbot
+docker compose logs certbot-renew
 ```

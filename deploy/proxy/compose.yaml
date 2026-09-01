@@ -18,6 +18,13 @@ services:
 
   certbot:
     image: certbot/certbot:latest
+    profiles: ["manual"]
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+
+  certbot-renew:
+    image: certbot/certbot:latest
     restart: unless-stopped
     entrypoint: >
       /bin/sh -c "trap exit TERM; while :; do certbot renew; sleep 12h; done"
