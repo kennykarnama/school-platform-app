@@ -27,4 +27,20 @@ describe('administration UI test environment', () => {
         expect(setupPage).to.include('onclick={confirmApply}')
         expect(setupPage).to.include("event.key === 'Escape'")
     })
+
+    it('uses same-origin API routing in production and an explicit local development URL', () => {
+        const appMain = fs.readFileSync(
+            path.join(__dirname, 'components/global/app-main/app-main.riot'),
+            'utf8',
+        )
+        const packageJson = JSON.parse(
+            fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'),
+        )
+
+        expect(appMain).to.include("process.env.SCHOOL_ADMINISTRATION_API_BASE_URL || ''")
+        expect(appMain).not.to.include('window.location.hostname}:8081')
+        expect(packageJson.scripts['start-dev']).to.include(
+            'SCHOOL_ADMINISTRATION_API_BASE_URL=http://127.0.0.1:8081',
+        )
+    })
 })

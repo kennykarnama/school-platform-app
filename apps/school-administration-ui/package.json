@@ -14,7 +14,7 @@
     "build": "webpack --mode production",
     "start": "npm run build && node server.js",
     "heroku-prebuild": "npm install --dev -g",
-    "start-dev": "webpack serve --mode development --hot --host 127.0.0.1 --port 3000"
+    "start-dev": "SCHOOL_ADMINISTRATION_API_BASE_URL=http://127.0.0.1:8081 webpack serve --mode development --hot --host 127.0.0.1 --port 3000"
   },
   "author": "kenny.karnama",
   "license": "MIT",
