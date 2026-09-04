@@ -1,6 +1,7 @@
 package main
 
 import (
+	userEntity "github.com/kennykarnama/school-adminstration-api/domain/entity/user"
 	"github.com/kennykarnama/school-adminstration-api/domain/handler/interceptor"
 	"github.com/kennykarnama/school-adminstration-api/domain/repository/user"
 	user2 "github.com/kennykarnama/school-adminstration-api/domain/service/user"
@@ -18,6 +19,7 @@ import (
 	"github.com/kennykarnama/school-adminstration-api/domain/repository/core"
 	setupRepo "github.com/kennykarnama/school-adminstration-api/domain/repository/setup"
 	academicYearSvc "github.com/kennykarnama/school-adminstration-api/domain/service/academicyear"
+	administrationSvc "github.com/kennykarnama/school-adminstration-api/domain/service/administration"
 	attendanceTypeSvc "github.com/kennykarnama/school-adminstration-api/domain/service/attendancetype"
 	classSvc "github.com/kennykarnama/school-adminstration-api/domain/service/class"
 	coreSvc "github.com/kennykarnama/school-adminstration-api/domain/service/core"
@@ -43,7 +45,7 @@ func main() {
 	academicYearRepo := academicyear.NewSQLRepository(dbconn)
 	academicSvc := academicYearSvc.NewService(academicYearRepo)
 
-	classRepo := class.NewEnumRepository()
+	classRepo := class.NewSQLRepository(dbconn)
 	classSvc := classSvc.NewService(classRepo)
 
 	attendanceTypeRepo := attendancetype.NewSQLRepository(dbconn)
@@ -59,6 +61,7 @@ func main() {
 	setupRepository := setupRepo.NewSQLRepository(dbconn)
 	setupService := setupSvc.NewService(setupRepository, classSvc)
 	setupHandler := handler.NewSetupHandler(setupService)
+	administrationHandler := handler.NewAdministrationHandler(administrationSvc.NewService(dbconn))
 
 	hostName, err := os.Hostname()
 	if err != nil {
@@ -95,14 +98,27 @@ func main() {
 	r.Handle("/api/v1/teacher/login", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.Login))).Methods("POST")
 	r.Handle("/api/v1/teacher/session/validate", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.Validate))).Methods("GET")
 	r.Handle("/api/v1/teacher/logout", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.Logout))).Methods("POST")
-	r.Handle("/api/v1/setup/preview", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Preview))).Methods("POST")
-	r.Handle("/api/v1/setup/apply", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Apply))).Methods("POST")
-	r.Handle("/api/v1/setup/students/template", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.StudentTemplate))).Methods("GET")
-	r.Handle("/api/v1/setup/students/import", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.ImportStudents))).Methods("POST")
+	r.Handle("/api/v1/teacher/password", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.ChangePassword))).Methods("POST")
+	r.Handle("/api/v1/platform/schools", interceptor.RequireRoles(userEntity.RolePlatformAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.ListSchools)))).Methods("GET")
+	r.Handle("/api/v1/platform/schools", interceptor.RequireRoles(userEntity.RolePlatformAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.CreateSchool)))).Methods("POST")
+	r.Handle("/api/v1/platform/schools/{id}", interceptor.RequireRoles(userEntity.RolePlatformAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.UpdateSchool)))).Methods("PUT")
+	r.Handle("/api/v1/platform/schools/{id}/status", interceptor.RequireRoles(userEntity.RolePlatformAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.SetSchoolActive)))).Methods("PATCH")
+	r.Handle("/api/v1/admin/teachers", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.ListTeachers)))).Methods("GET")
+	r.Handle("/api/v1/admin/teachers", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.CreateTeacher)))).Methods("POST")
+	r.Handle("/api/v1/admin/teachers/{id}/status", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.SetTeacherActive)))).Methods("PATCH")
+	r.Handle("/api/v1/admin/teachers/{id}/reset-password", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.ResetTeacherPassword)))).Methods("POST")
+	r.Handle("/api/v1/admin/teachers/{id}/access", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.ReplaceTeacherAccess)))).Methods("PUT")
+	r.Handle("/api/v1/admin/classes", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.CreateClass)))).Methods("POST")
+	r.Handle("/api/v1/setup/preview", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Preview)))).Methods("POST")
+	r.Handle("/api/v1/setup/apply", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Apply)))).Methods("POST")
+	r.Handle("/api/v1/setup/students/template", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.StudentTemplate)))).Methods("GET")
+	r.Handle("/api/v1/setup/students/import", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.ImportStudents)))).Methods("POST")
 
 	if cfg.EnableAuth {
 		logrus.Infof("auth enabled")
 		r.Use(authMiddleware.ValidateToken)
+	} else {
+		r.Use(interceptor.DevelopmentPrincipal)
 	}
 
 	c := cors.New(cors.Options{
@@ -114,7 +130,7 @@ func main() {
 		AllowCredentials: true,
 		// Enable Debugging for testing, consider disabling in production
 		Debug:          true,
-		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodHead, http.MethodPatch},
+		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodHead, http.MethodPatch, http.MethodPut},
 	})
 
 	handler := c.Handler(r)

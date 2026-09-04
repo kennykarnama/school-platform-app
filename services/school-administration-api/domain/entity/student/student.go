@@ -8,6 +8,7 @@ import (
 
 type Student struct {
 	ID            string `gorm:"type:uuid;default:uuid_generate_v4()"`
+	SchoolID      string
 	Name          string
 	AlternativeID string
 	Graduated     bool
@@ -17,6 +18,7 @@ type Student struct {
 
 type StudentClass struct {
 	ID               string `gorm:"type:uuid;default:uuid_generate_v4()"`
+	SchoolID         string
 	StudentID        string
 	ClassLabel       string
 	AcademicYearID   string
@@ -28,6 +30,7 @@ type StudentClass struct {
 
 type StudentAttendance struct {
 	ID               string `gorm:"type:uuid;default:uuid_generate_v4()"`
+	SchoolID         string
 	StudentClassID   string
 	Attend           bool
 	CreatedAt        time.Time

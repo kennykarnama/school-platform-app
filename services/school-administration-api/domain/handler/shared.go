@@ -29,6 +29,10 @@ func ErrorToHTTPStatus(err error) int {
 		return http.StatusUnauthorized
 	case user.ErrInvalidCredentials:
 		return http.StatusUnauthorized
+	case user.ErrAccountInactive:
+		return http.StatusUnauthorized
+	case user.ErrForbidden, user.ErrPasswordChangeRequired:
+		return http.StatusForbidden
 	case student.ErrAlternativeIDAlreadyExists:
 		return http.StatusConflict
 	default:

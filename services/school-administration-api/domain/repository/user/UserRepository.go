@@ -13,6 +13,7 @@ type Repository interface {
 	SaveUserSession(ctx context.Context, session *user.UserSession) error
 	GetUserSessionByToken(ctx context.Context, token string) (*user.UserSession, error)
 	DeleteUserSessionByToken(ctx context.Context, token string) error
+	UpdatePassword(ctx context.Context, userID, password string, mustChange bool) error
 	SaveTeachers(ctx context.Context, newTeachers []*user.Teacher) error
 }
 
@@ -26,7 +27,10 @@ func NewMySqlRepository(db *gorm.DB) *MySqlRepository {
 
 func (m *MySqlRepository) GetUserByAlternativeId(ctx context.Context, alternativeId string) (*user.Teacher, error) {
 	var userData user.Teacher
-	err := m.db.Where("alternative_id = ?", alternativeId).Find(&userData).Error
+	err := m.db.WithContext(ctx).Table("teacher").
+		Select("teacher.*, school.name AS school_name, school.code AS school_code, COALESCE(school.active, true) AS school_active").
+		Joins("LEFT JOIN school ON school.id = teacher.school_id").
+		Where("teacher.alternative_id = ? AND teacher.deleted_at IS NULL", alternativeId).First(&userData).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, user.ErrUserNotFound
@@ -38,7 +42,10 @@ func (m *MySqlRepository) GetUserByAlternativeId(ctx context.Context, alternativ
 
 func (m *MySqlRepository) GetUserByID(ctx context.Context, id string) (*user.Teacher, error) {
 	var userData user.Teacher
-	err := m.db.WithContext(ctx).Where("id = ?", id).First(&userData).Error
+	err := m.db.WithContext(ctx).Table("teacher").
+		Select("teacher.*, school.name AS school_name, school.code AS school_code, COALESCE(school.active, true) AS school_active").
+		Joins("LEFT JOIN school ON school.id = teacher.school_id").
+		Where("teacher.id = ? AND teacher.deleted_at IS NULL", id).First(&userData).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, user.ErrUserNotFound
@@ -58,11 +65,11 @@ func (m *MySqlRepository) SaveUserSession(ctx context.Context, session *user.Use
 
 func (m *MySqlRepository) GetUserSessionByToken(ctx context.Context, token string) (*user.UserSession, error) {
 	var session user.UserSession
-	err := m.db.Table("user_session").
+	err := m.db.WithContext(ctx).Table("user_session").
 		Where("token = ?", token).
 		Order("created_at DESC").
 		Limit(1).
-		Find(&session).Error
+		First(&session).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, user.ErrSessionNotValid
@@ -77,6 +84,12 @@ func (m *MySqlRepository) DeleteUserSessionByToken(ctx context.Context, token st
 		return fmt.Errorf("action=user.mysql.deleteUserSessionByToken err=%v", err)
 	}
 	return nil
+}
+
+func (m *MySqlRepository) UpdatePassword(ctx context.Context, userID, password string, mustChange bool) error {
+	return m.db.WithContext(ctx).Table("teacher").Where("id = ?", userID).Updates(map[string]interface{}{
+		"password": password, "must_change_password": mustChange,
+	}).Error
 }
 
 func (m *MySqlRepository) SaveTeachers(ctx context.Context, newTeachers []*user.Teacher) error {

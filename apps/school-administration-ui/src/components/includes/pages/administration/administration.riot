@@ -1,0 +1,115 @@
+<administration>
+    <div class="container administration-page">
+        <h2>Pengguna & Akses</h2>
+        <p class="text-gray">Kelola kelas, akun guru, dan akses kelas untuk setiap tahun akademik.</p>
+        <div if={state.message} class="toast toast-{state.success ? 'success' : 'error'}">{state.message}</div>
+
+        <section>
+            <h4>Kelas Sekolah</h4>
+            <div class="input-group">
+                <input class="form-input" placeholder="Contoh: KELAS I A" value={state.newClass} oninput={event => update({newClass: event.target.value})}>
+                <button class="btn btn-primary input-group-btn" onclick={createClass}>Tambah Kelas</button>
+            </div>
+            <div class="class-list"><span each={item in state.classes} class="chip">{item.label}</span></div>
+        </section>
+
+        <section>
+            <h4>Tambah Guru</h4>
+            <div class="columns">
+                <div class="column col-3 col-sm-12"><input class="form-input" placeholder="Username / NIP" value={state.newTeacher.alternativeId} oninput={event => editNewTeacher('alternativeId', event)}></div>
+                <div class="column col-3 col-sm-12"><input class="form-input" placeholder="Nama lengkap" value={state.newTeacher.name} oninput={event => editNewTeacher('name', event)}></div>
+                <div class="column col-3 col-sm-12"><input class="form-input" type="password" placeholder="Kata sandi sementara" value={state.newTeacher.temporaryPassword} oninput={event => editNewTeacher('temporaryPassword', event)}></div>
+                <div class="column col-3 col-sm-12"><button class="btn btn-primary" onclick={createTeacher}>Tambah Guru</button></div>
+            </div>
+            <small class="text-gray">Kata sandi sementara minimal 10 karakter, mengandung huruf dan angka, serta wajib diganti saat login pertama.</small>
+        </section>
+
+        <section>
+            <h4>Daftar Guru</h4>
+            <div class="table-scroll">
+                <table class="table table-striped">
+                    <thead><tr><th>Guru</th><th>Status</th><th>Reset kata sandi</th><th>Akses</th></tr></thead>
+                    <tbody>
+                        <tr each={teacher in state.teachers}>
+                            <td><strong>{teacher.name}</strong><br><small>{teacher.alternativeId}</small></td>
+                            <td><button class="btn btn-sm {teacher.active ? 'btn-error' : 'btn-success'}" onclick={() => setTeacherActive(teacher)}>{teacher.active ? 'Nonaktifkan' : 'Aktifkan'}</button></td>
+                            <td>
+                                <div class="input-group">
+                                    <input class="form-input input-sm" type="password" placeholder="Kata sandi baru" value={state.resetPasswords[teacher.id] || ''} oninput={event => setResetPassword(teacher.id, event)}>
+                                    <button class="btn btn-sm input-group-btn" onclick={() => resetPassword(teacher)}>Reset</button>
+                                </div>
+                            </td>
+                            <td><button class="btn btn-sm btn-primary" onclick={() => selectTeacher(teacher)}>Atur Akses</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section if={state.selectedTeacher}>
+            <h4>Akses kelas: {state.selectedTeacher.name}</h4>
+            <div class="access-grid">
+                <label each={year in state.years} class="access-year">
+                    <strong>{year.label}</strong>
+                    <label each={classItem in state.classes} class="form-checkbox">
+                        <input type="checkbox" checked={hasAccess(year.ID, classItem.label)} onchange={event => toggleAccess(year.ID, classItem.label, event)}>
+                        <i class="form-icon"></i>{classItem.label}
+                    </label>
+                </label>
+            </div>
+            <button class="btn btn-success" onclick={saveAccess}>Simpan Akses</button>
+        </section>
+    </div>
+
+    <style>
+        administration section { margin-top: 2rem; }
+        administration .class-list { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .7rem; }
+        administration .table-scroll { overflow-x: auto; }
+        administration table { min-width: 760px; }
+        administration .access-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 1rem; }
+        administration .access-year { border: .05rem solid #dadee4; border-radius: .2rem; display: block; padding: .7rem; }
+        administration .access-year > strong { display: block; margin-bottom: .5rem; }
+    </style>
+
+    <script>
+        const blankTeacher = () => ({alternativeId: '', name: '', temporaryPassword: ''})
+        export default {
+            state: {teachers: [], years: [], classes: [], selectedTeacher: null, selectedAccess: [], newClass: '', newTeacher: blankTeacher(), resetPasswords: {}, message: '', success: false},
+            onMounted() { this.load() },
+            load() {
+                Promise.all([axios.get('/api/v1/admin/teachers'), axios.get('/api/v1/academic-years'), axios.get('/api/v1/classes')])
+                    .then(([teachers, years, classes]) => this.update({teachers: teachers.data.items || [], years: years.data.items || [], classes: classes.data.items || []}))
+                    .catch(error => this.fail(error))
+            },
+            editNewTeacher(field, event) { this.state.newTeacher[field] = event.target.value; this.update() },
+            createTeacher(event) {
+                event.preventDefault()
+                axios.post('/api/v1/admin/teachers', this.state.newTeacher).then(() => { this.update({newTeacher: blankTeacher(), message: 'Guru berhasil dibuat', success: true}); this.load() }).catch(error => this.fail(error))
+            },
+            createClass(event) {
+                event.preventDefault()
+                axios.post('/api/v1/admin/classes', {label: this.state.newClass}).then(() => { this.update({newClass: '', message: 'Kelas berhasil ditambahkan', success: true}); this.load() }).catch(error => this.fail(error))
+            },
+            setTeacherActive(teacher) { axios.patch(`/api/v1/admin/teachers/${teacher.id}/status`, {active: !teacher.active}).then(() => this.load()).catch(error => this.fail(error)) },
+            setResetPassword(id, event) { this.state.resetPasswords[id] = event.target.value; this.update() },
+            resetPassword(teacher) {
+                axios.post(`/api/v1/admin/teachers/${teacher.id}/reset-password`, {temporaryPassword: this.state.resetPasswords[teacher.id] || ''})
+                    .then(() => { this.state.resetPasswords[teacher.id] = ''; this.update({message: 'Kata sandi sementara diperbarui', success: true}) }).catch(error => this.fail(error))
+            },
+            selectTeacher(teacher) { this.update({selectedTeacher: teacher, selectedAccess: (teacher.access || []).map(item => ({...item}))}) },
+            hasAccess(yearID, classLabel) { return this.state.selectedAccess.some(item => item.academicYearId === yearID && item.classLabel === classLabel) },
+            toggleAccess(yearID, classLabel, event) {
+                const key = item => item.academicYearId === yearID && item.classLabel === classLabel
+                if (event.target.checked && !this.state.selectedAccess.some(key)) this.state.selectedAccess.push({academicYearId: yearID, classLabel})
+                if (!event.target.checked) this.state.selectedAccess = this.state.selectedAccess.filter(item => !key(item))
+                this.update()
+            },
+            saveAccess(event) {
+                event.preventDefault()
+                axios.put(`/api/v1/admin/teachers/${this.state.selectedTeacher.id}/access`, {items: this.state.selectedAccess})
+                    .then(() => { this.update({message: 'Akses guru berhasil disimpan', success: true, selectedTeacher: null}); this.load() }).catch(error => this.fail(error))
+            },
+            fail(error) { this.update({message: error.response && error.response.data && error.response.data.message || 'Operasi tidak berhasil', success: false}) },
+        }
+    </script>
+</administration>

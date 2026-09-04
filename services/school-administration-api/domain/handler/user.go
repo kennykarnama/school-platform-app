@@ -69,7 +69,7 @@ func (uh *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (uh *UserHandler) Validate(w http.ResponseWriter, r *http.Request) {
 	if !uh.authEnabled {
-		ResponseJson(w, TeacherProfileResponse{Name: "Administrator"}, http.StatusOK)
+		ResponseJson(w, TeacherProfileResponse{Name: "Administrator", Role: userEntity.RoleSchoolAdmin, School: &SchoolSummaryResponse{ID: "00000000-0000-4000-8000-000000000001", Name: "Existing School", Code: "legacy"}}, http.StatusOK)
 		return
 	}
 	session, err := userEntity.NewUserSessionFromCtx(r.Context())
@@ -82,11 +82,17 @@ func (uh *UserHandler) Validate(w http.ResponseWriter, r *http.Request) {
 		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
 		return
 	}
-	ResponseJson(w, TeacherProfileResponse{
-		ID:            teacher.Id,
-		AlternativeID: teacher.AlternativeId,
-		Name:          teacher.Name,
-	}, http.StatusOK)
+	response := TeacherProfileResponse{
+		ID:                 teacher.Id,
+		AlternativeID:      teacher.AlternativeId,
+		Name:               teacher.Name,
+		Role:               teacher.Role,
+		MustChangePassword: teacher.MustChangePassword,
+	}
+	if teacher.SchoolID != nil {
+		response.School = &SchoolSummaryResponse{ID: *teacher.SchoolID, Name: teacher.SchoolName, Code: teacher.SchoolCode}
+	}
+	ResponseJson(w, response, http.StatusOK)
 }
 
 func (uh *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -111,5 +117,27 @@ func (uh *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Secure:   uh.cookieSecure,
 	})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (uh *UserHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	principal, err := userEntity.NewPrincipalFromCtx(r.Context())
+	if err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, http.StatusUnauthorized)
+		return
+	}
+	var req ChangePasswordRequest
+	if err := util.DecodeToStruct(r.Body, &req); err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	if err := uh.validate.Struct(req); err != nil || !validPassword(req.NewPassword) {
+		ResponseJson(w, ErrorResponse{Message: "Kata sandi baru minimal 10 karakter serta mengandung huruf dan angka"}, http.StatusBadRequest)
+		return
+	}
+	if err := uh.svc.ChangePassword(r.Context(), principal.UserID, req.CurrentPassword, req.NewPassword); err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }

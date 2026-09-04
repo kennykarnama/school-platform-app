@@ -16,6 +16,7 @@ type Credential struct {
 	AlternativeId string `csv:"alternative_id"`
 	Name          string `csv:"name"`
 	Password      string `csv:"password"`
+	SchoolID      string `csv:"school_id"`
 }
 
 type Credentials []*Credential
@@ -23,10 +24,18 @@ type Credentials []*Credential
 func (credentials Credentials) ToTeachers() []*user3.Teacher {
 	var teachers []*user3.Teacher
 	for _, c := range credentials {
+		schoolID := c.SchoolID
+		if schoolID == "" {
+			schoolID = "00000000-0000-4000-8000-000000000001"
+		}
 		teachers = append(teachers, &user3.Teacher{
-			AlternativeId: c.AlternativeId,
-			Name:          c.Name,
-			Password:      c.Password,
+			AlternativeId:      c.AlternativeId,
+			Name:               c.Name,
+			Password:           c.Password,
+			SchoolID:           &schoolID,
+			Role:               user3.RoleTeacher,
+			Active:             true,
+			MustChangePassword: true,
 		})
 	}
 	return teachers

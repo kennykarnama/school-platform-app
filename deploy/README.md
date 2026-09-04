@@ -33,12 +33,56 @@ docker compose up -d --remove-orphans
 docker compose ps
 ```
 
+## Deploy the experimental main build
+
+Set `IMAGE_TAG=experimental` in `.env`, then pull and recreate the stack:
+
+```sh
+docker compose pull
+docker compose up -d --remove-orphans
+docker compose ps
+```
+
+The `experimental` tag follows the newest verified commit on `main` and must not be treated as a stable production release. For a reproducible test deployment or rollback, replace it with the corresponding immutable `sha-...` tag shown by the workflow.
+
+## Deploy a manually built branch
+
+Run **Build and release Docker images** from the GitHub Actions page and select the desired branch in the **Run workflow** dialog. The images are published with a sanitized `branch-<branch-name>` tag; for example, `feature/tenant-admin` becomes `branch-feature-tenant-admin`.
+
+Set that value in `.env`, or export it for the current shell, then recreate the stack:
+
+```sh
+export IMAGE_TAG=branch-feature-tenant-admin
+docker compose pull
+docker compose up -d --remove-orphans
+```
+
+Use the accompanying immutable `sha-...` tag when the branch deployment must be reproducible.
+
 ## Logs and migration status
 
 ```sh
 docker compose logs migrations
 docker compose logs -f school-administration-api school-user-api school-administration-ui
 ```
+
+## Bootstrap the platform administrator
+
+Migration 20 moves existing data into the `legacy` school and promotes its oldest active teacher to school administrator. The first global platform administrator is created directly in CockroachDB; there is intentionally no public bootstrap endpoint.
+
+Generate a bcrypt hash outside the database and keep the plaintext password out of shell history and source control. Then insert the account into the administration database with a globally unique username:
+
+```sql
+INSERT INTO teacher (
+  alternative_id, name, password, school_id, role, active,
+  must_change_password, created_at, updated_at
+) VALUES (
+  'platform.admin', 'Platform Administrator', '<BCRYPT_HASH>', NULL,
+  'platform_admin', true, true, now(), now()
+);
+```
+
+The administrator must replace the temporary password after first login. From the **Sekolah** page, they can create each tenant and its first school administrator.
 
 ## Pin or roll back
 

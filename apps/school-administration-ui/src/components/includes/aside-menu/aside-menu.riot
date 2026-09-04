@@ -6,11 +6,13 @@
                 <div class="teacher-details">
                     <strong>{props.teacher ? props.teacher.name : 'Memuat profil...'}</strong>
                     <small if={props.teacher && props.teacher.alternativeId} class="text-gray">NIP: {props.teacher.alternativeId}</small>
+                    <small if={props.teacher && props.teacher.school} class="text-gray">{props.teacher.school.name}</small>
+                    <small if={props.teacher && props.teacher.role} class="text-gray">{roleLabel(props.teacher.role)}</small>
                 </div>
             </div>
 
             <ul class="nav">
-                <li each={item in state.items} class="nav-item {isLinkSelected(item, route) ? 'active' : ''}">
+                <li each={item in visibleItems()} class="nav-item {isLinkSelected(item, route) ? 'active' : ''}">
                     <a href="{item.link}">{item.label}</a>
                     <template if={item.children}>
                         <ul class="nav">
@@ -77,14 +79,22 @@
                     {
                         "label": "Home",
                         "link": "#",
+                        "roles": ["school_admin", "teacher"],
                     },
                     {
                         "label": "Data Awal",
-                        "link": "#setup"
+                        "link": "#setup",
+                        "roles": ["school_admin"],
+                    },
+                    {
+                        "label": "Pengguna & Akses",
+                        "link": "#administration",
+                        "roles": ["school_admin"],
                     },
                     {
                         "label": "Absensi",
                         "link": "#absensi",
+                        "roles": ["school_admin", "teacher"],
                         "children": [
                             {
                                 "label": "Input",
@@ -102,7 +112,13 @@
                     },
                     {
                         "label": "About",
-                        "link": "#about"
+                        "link": "#about",
+                        "roles": ["school_admin", "teacher", "platform_admin"],
+                    },
+                    {
+                        "label": "Sekolah",
+                        "link": "#platform/schools",
+                        "roles": ["platform_admin"],
                     }
                 ]
             },
@@ -118,6 +134,13 @@
                 if (!words.length) return '--'
                 if (words.length === 1) return Array.from(words[0]).slice(0, 2).join('').toUpperCase()
                 return `${Array.from(words[0])[0]}${Array.from(words[words.length - 1])[0]}`.toUpperCase()
+            },
+            visibleItems() {
+                const role = this.props.teacher && this.props.teacher.role
+                return this.state.items.filter(item => !item.roles || item.roles.includes(role))
+            },
+            roleLabel(role) {
+                return ({platform_admin: 'Administrator Platform', school_admin: 'Administrator Sekolah', teacher: 'Guru'})[role] || role
             },
             logout(event) {
                 event.preventDefault()

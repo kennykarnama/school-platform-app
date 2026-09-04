@@ -51,6 +51,11 @@
                             this.update({
                                 teacher: res.data,
                             })
+                            if (res.data.mustChangePassword && window.location.hash !== '#password') {
+                                router.push('/#password')
+                            } else if (res.data.role === 'platform_admin' && (!window.location.hash || window.location.hash === '#')) {
+                                router.push('/#platform/schools')
+                            }
                         }).catch(e => {
                             console.log(e)
                         });

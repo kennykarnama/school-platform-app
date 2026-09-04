@@ -8,6 +8,7 @@ import (
 
 type AttendanceType struct {
 	ID        string
+	SchoolID  string
 	Label     string
 	Color     *string
 	CreatedAt time.Time

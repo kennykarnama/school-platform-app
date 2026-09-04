@@ -66,4 +66,30 @@ describe('administration UI test environment', () => {
         expect(asideMenu).to.include("axios.post('/api/v1/teacher/logout')")
         expect(asideMenu).to.include("router.push('/#login')")
     })
+
+    it('exposes role-specific tenant administration pages', () => {
+        const appContent = fs.readFileSync(
+            path.join(__dirname, 'components/global/app-content/app-content.riot'),
+            'utf8',
+        )
+        const asideMenu = fs.readFileSync(
+            path.join(__dirname, 'components/includes/aside-menu/aside-menu.riot'),
+            'utf8',
+        )
+        const administration = fs.readFileSync(
+            path.join(__dirname, 'components/includes/pages/administration/administration.riot'),
+            'utf8',
+        )
+        const schools = fs.readFileSync(
+            path.join(__dirname, 'components/includes/pages/platform/platform-schools.riot'),
+            'utf8',
+        )
+
+        expect(appContent).to.include('path="/#administration"')
+        expect(appContent).to.include('path="/#platform/schools"')
+        expect(asideMenu).to.include('"roles": ["school_admin"]')
+        expect(asideMenu).to.include('"roles": ["platform_admin"]')
+        expect(administration).to.include("axios.put(`/api/v1/admin/teachers/${this.state.selectedTeacher.id}/access`")
+        expect(schools).to.include("axios.post('/api/v1/platform/schools'")
+    })
 })

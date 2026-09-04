@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/kennykarnama/school-adminstration-api/domain/entity/attendancetype"
+	"github.com/kennykarnama/school-adminstration-api/domain/entity/user"
 	attendanceTypeRepo "github.com/kennykarnama/school-adminstration-api/domain/repository/attendancetype"
 )
 
@@ -22,5 +23,9 @@ func NewService(repo attendanceTypeRepo.Repository) *svc {
 }
 
 func (s *svc) List(ctx context.Context) ([]*attendancetype.AttendanceType, error) {
-	return s.repo.List(ctx)
+	principal, err := user.NewPrincipalFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.List(ctx, principal.SchoolID)
 }
