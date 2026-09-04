@@ -33,6 +33,20 @@ docker compose up -d --remove-orphans
 docker compose ps
 ```
 
+## Deploy an experimental or branch build
+
+Pushes to `main` publish the `experimental` image tag. Other branches can be built manually from **Actions → Build and release Docker images → Run workflow** and receive a sanitized `branch-<branch-name>` tag. For example, `feature/tenant-admin` becomes `branch-feature-tenant-admin`.
+
+Set the selected tag in `.env`, or export it for the current shell, then recreate the stack:
+
+```sh
+export IMAGE_TAG=branch-feature-tenant-admin
+docker compose pull
+docker compose up -d --remove-orphans
+```
+
+Use the accompanying immutable `sha-...` tag when the deployment must be reproducible.
+
 ## Logs and migration status
 
 ```sh
