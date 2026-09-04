@@ -74,14 +74,14 @@ docker compose run --rm certbot certificates
 
 The `certbot-renew` service runs `certbot renew` every 12 hours. Certificates are valid for 90 days and renewable 30 days before expiry.
 
-Nginx must be reloaded after a successful renewal. Add a cron job on the VM:
+After a successful renewal, certbot's deploy hook touches a signal file. A cron job checks for it and reloads Nginx only when a renewal actually occurred. Add this cron job on the VM (adjust the path to your proxy directory):
 
 ```sh
 sudo crontab -e
 ```
 
 ```
-0 3 * * * docker exec nginx nginx -s reload
+*/5 * * * * [ -f /path/to/deploy/proxy/certbot/www/.renewed ] && docker exec nginx nginx -s reload && rm /path/to/deploy/proxy/certbot/www/.renewed
 ```
 
 ## Post-setup
