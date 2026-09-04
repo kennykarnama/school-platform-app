@@ -3,9 +3,11 @@ package setup
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	classEntity "github.com/kennykarnama/school-adminstration-api/domain/entity/class"
+	"github.com/kennykarnama/school-adminstration-api/util"
 )
 
 type ClassService interface {
@@ -21,6 +23,8 @@ type svc struct {
 	repo     Repository
 	classSvc ClassService
 }
+
+var hexColorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
 func NewService(repo Repository, classSvc ClassService) *svc {
 	return &svc{repo: repo, classSvc: classSvc}
@@ -70,12 +74,16 @@ func (s *svc) normalizeAndValidate(ctx context.Context, req Request) (Request, *
 	seenTypes := map[string]bool{}
 	for i := range req.AttendanceTypes {
 		req.AttendanceTypes[i].Label = strings.TrimSpace(req.AttendanceTypes[i].Label)
+		req.AttendanceTypes[i].Color = strings.TrimSpace(req.AttendanceTypes[i].Color)
 		key := strings.ToLower(req.AttendanceTypes[i].Label)
 		item := ItemResult{Index: i, Entity: "attendanceType", Key: req.AttendanceTypes[i].Label}
 		if key == "" {
 			item.Errors = append(item.Errors, "Jenis kehadiran wajib diisi")
 		} else if seenTypes[key] {
 			item.Errors = append(item.Errors, "Jenis kehadiran duplikat dalam data")
+		}
+		if req.AttendanceTypes[i].Color != "" && !hexColorPattern.MatchString(req.AttendanceTypes[i].Color) {
+			item.Errors = append(item.Errors, "Warna harus berupa kode hex 6 digit, contoh #16A34A")
 		}
 		seenTypes[key] = true
 		result.Items = append(result.Items, item)
@@ -88,7 +96,13 @@ func (s *svc) normalizeAndValidate(ctx context.Context, req Request) (Request, *
 	namesByAlternativeID := map[string]string{}
 	for i := range req.Students {
 		student := &req.Students[i]
-		student.AlternativeID = strings.TrimSpace(student.AlternativeID)
+		student.AlternativeID = strings.ToUpper(strings.TrimSpace(student.AlternativeID))
+		if student.AlternativeID == "" {
+			student.AlternativeID, err = util.GenerateStudentAlternativeID()
+			if err != nil {
+				return req, nil, err
+			}
+		}
 		student.Name = strings.TrimSpace(student.Name)
 		student.AcademicYearLabel = strings.TrimSpace(student.AcademicYearLabel)
 		student.ClassLabel = strings.ToUpper(strings.TrimSpace(student.ClassLabel))
@@ -96,9 +110,6 @@ func (s *svc) normalizeAndValidate(ctx context.Context, req Request) (Request, *
 		yearKey := strings.ToLower(student.AcademicYearLabel)
 		assignmentKey := altKey + "|" + yearKey
 		item := ItemResult{Index: i, Entity: "studentAssignment", Key: student.AlternativeID}
-		if student.AlternativeID == "" {
-			item.Errors = append(item.Errors, "ID alternatif wajib diisi")
-		}
 		if student.Name == "" {
 			item.Errors = append(item.Errors, "Nama siswa wajib diisi")
 		}

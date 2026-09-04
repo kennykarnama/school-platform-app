@@ -1,4 +1,34 @@
 <setup>
+    <div class="modal {state.showApplyConfirmation ? 'active' : ''}"
+         role="dialog"
+         aria-modal="true"
+         aria-hidden={!state.showApplyConfirmation}
+         aria-labelledby="setup-apply-dialog-title">
+        <a class="modal-overlay" href="#close" role="button" aria-label="Tutup konfirmasi" onclick={closeApplyConfirmation}></a>
+        <div class="modal-container setup-confirmation-modal">
+            <div class="modal-header">
+                <button class="btn btn-clear float-right" aria-label="Tutup" disabled={state.loading} onclick={closeApplyConfirmation}></button>
+                <div class="modal-title h5" id="setup-apply-dialog-title">Konfirmasi Terapkan Data</div>
+            </div>
+            <div class="modal-body">
+                <div class="content">
+                    <p>Data awal yang sudah divalidasi akan diterapkan.</p>
+                    <p class="text-gray">Data yang tidak tercantum tidak akan dihapus.</p>
+                    <div if={state.showApplyConfirmation && state.message && !state.success} class="toast toast-error">
+                        {state.message}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" disabled={state.loading} onclick={closeApplyConfirmation}>Batal</button>
+                <button id="setup-confirm-apply"
+                        class="btn btn-success loading-{state.loading}"
+                        disabled={state.loading || !state.preview || !state.preview.valid}
+                        onclick={confirmApply}>Terapkan Data</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container setup-page">
         <h2>Data Awal</h2>
         <p class="text-gray">Kelola tahun ajaran, jenis kehadiran, dan penempatan siswa. Data yang tidak dicantumkan tidak akan dihapus.</p>
@@ -29,8 +59,11 @@
                 <button class="btn btn-sm" onclick={addAttendanceType}>Tambah</button>
             </div>
             <div class="columns row-gap" each={(item, index) in state.attendanceTypes}>
-                <div class="column col-9 col-sm-12">
+                <div class="column col-7 col-sm-12">
                     <input class="form-input" value={item.label} placeholder="Contoh: Sakit" oninput={(event) => editAttendanceType(index, event)}>
+                </div>
+                <div class="column col-2 col-sm-12">
+                    <input class="form-input color-input" type="color" value={item.color} title="Warna grafik" oninput={(event) => editAttendanceColor(index, event)}>
                 </div>
                 <div class="column col-3 col-sm-12">
                     <button class="btn btn-error btn-sm" onclick={() => removeAttendanceType(index)}>Keluarkan</button>
@@ -45,10 +78,10 @@
                     <small class="text-gray">Maksimal 5.000 baris per proses.</small>
                 </div>
                 <div>
-                    <button class="btn btn-sm" onclick={downloadTemplate}>Unduh Template CSV</button>
+                    <button class="btn btn-sm" onclick={downloadExcelTemplate}>Unduh Template Excel</button>
                     <label class="btn btn-sm btn-primary file-button">
-                        Impor CSV
-                        <input type="file" accept=".csv,text/csv" onchange={importCSV}>
+                        Impor Excel/CSV
+                        <input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" onchange={importFile}>
                     </label>
                     <button class="btn btn-sm" onclick={addStudent}>Tambah</button>
                 </div>
@@ -58,7 +91,7 @@
                     <thead><tr><th>ID Alternatif</th><th>Nama</th><th>Tahun Ajaran</th><th>Kelas</th><th></th></tr></thead>
                     <tbody>
                         <tr each={(item, index) in state.students}>
-                            <td><input class="form-input" value={item.alternativeID} oninput={(event) => editStudent(index, 'alternativeID', event)}></td>
+                            <td><input class="form-input" value={item.alternativeID} placeholder="Kosong = dibuat otomatis" oninput={(event) => editStudent(index, 'alternativeID', event)}></td>
                             <td><input class="form-input" value={item.name} oninput={(event) => editStudent(index, 'name', event)}></td>
                             <td><input class="form-input" value={item.academicYearLabel} list="setup-years" oninput={(event) => editStudent(index, 'academicYearLabel', event)}></td>
                             <td>
@@ -111,13 +144,17 @@
         setup .action-bar { display: flex; gap: .5rem; margin-top: 2rem; }
         setup .table-scroll { overflow-x: auto; }
         setup table { min-width: 760px; }
+        setup .color-input { height: 2rem; padding: .1rem; }
         setup .file-button { margin: 0 .35rem; }
         setup .file-button input { display: none; }
+        setup .setup-confirmation-modal { max-width: 30rem; }
+        setup .setup-confirmation-modal .modal-body p:last-of-type { margin-bottom: 0; }
+        setup .setup-confirmation-modal .toast { margin-top: 1rem; }
     </style>
 
     <script>
-        const CSV_HEADERS = ['alternativeID', 'name', 'academicYearLabel', 'classLabel']
         const blankStudent = () => ({alternativeID: '', name: '', academicYearLabel: '', classLabel: ''})
+        const defaultColors = ['#16A34A', '#F59E0B', '#2563EB', '#DC2626', '#7C3AED', '#0891B2']
 
         export default {
             state: {
@@ -129,25 +166,32 @@
                 loading: false,
                 message: '',
                 success: false,
+                showApplyConfirmation: false,
             },
             onMounted() {
+                this.applyConfirmationKeydownHandler = event => this.closeApplyConfirmationOnEscape(event)
+                window.addEventListener('keydown', this.applyConfirmationKeydownHandler)
                 Promise.all([
                     axios.get('/api/v1/academic-years'),
                     axios.get('/api/v1/attendance/types'),
                     axios.get('/api/v1/classes'),
                 ]).then(([years, types, classes]) => this.update({
                     academicYears: (years.data.items || []).map(item => ({label: item.label})),
-                    attendanceTypes: (types.data.items || []).map(item => ({label: item.label})),
+                    attendanceTypes: (types.data.items || []).map((item, index) => ({label: item.label, color: item.color || defaultColors[index % defaultColors.length]})),
                     classes: classes.data.items || [],
                 })).catch(error => this.fail(error, 'Data referensi tidak dapat dimuat'))
+            },
+            onBeforeUnmount() {
+                window.removeEventListener('keydown', this.applyConfirmationKeydownHandler)
             },
             changed() { this.update({preview: null, message: ''}) },
             addAcademicYear(event) { event.preventDefault(); this.state.academicYears.push({label: ''}); this.changed() },
             removeAcademicYear(index) { this.state.academicYears.splice(index, 1); this.changed() },
             editAcademicYear(index, event) { this.state.academicYears[index].label = event.target.value; this.changed() },
-            addAttendanceType(event) { event.preventDefault(); this.state.attendanceTypes.push({label: ''}); this.changed() },
+            addAttendanceType(event) { event.preventDefault(); this.state.attendanceTypes.push({label: '', color: defaultColors[this.state.attendanceTypes.length % defaultColors.length]}); this.changed() },
             removeAttendanceType(index) { this.state.attendanceTypes.splice(index, 1); this.changed() },
             editAttendanceType(index, event) { this.state.attendanceTypes[index].label = event.target.value; this.changed() },
+            editAttendanceColor(index, event) { this.state.attendanceTypes[index].color = event.target.value; this.changed() },
             addStudent(event) { event.preventDefault(); this.state.students.push(blankStudent()); this.changed() },
             removeStudent(index) { this.state.students.splice(index, 1); this.changed() },
             editStudent(index, field, event) { this.state.students[index][field] = event.target.value; this.changed() },
@@ -155,7 +199,7 @@
                 const nonEmpty = item => Object.values(item).some(value => String(value || '').trim())
                 return {
                     academicYears: this.state.academicYears.filter(nonEmpty),
-                    attendanceTypes: this.state.attendanceTypes.filter(nonEmpty),
+                    attendanceTypes: this.state.attendanceTypes.filter(item => String(item.label || '').trim()),
                     students: this.state.students.filter(nonEmpty),
                 }
             },
@@ -163,66 +207,86 @@
                 event.preventDefault()
                 this.update({loading: true, message: ''})
                 axios.post('/api/v1/setup/preview', this.payload())
-                    .then(response => this.update({preview: response.data}))
+                    .then(response => {
+                        const submittedStudents = this.state.students.filter(item => Object.values(item).some(value => String(value || '').trim()))
+                        for (const item of response.data.items || []) {
+                            if (item.entity === 'studentAssignment' && submittedStudents[item.index]) {
+                                submittedStudents[item.index].alternativeID = item.key
+                            }
+                        }
+                        this.update({preview: response.data})
+                    })
                     .catch(error => this.fail(error, 'Pratinjau gagal dibuat'))
                     .finally(() => this.update({loading: false}))
             },
             apply(event) {
                 event.preventDefault()
                 if (!this.state.preview || !this.state.preview.valid) return
-                if (!window.confirm('Terapkan data awal ini? Data yang tidak tercantum tidak akan dihapus.')) return
+                this.applyTrigger = event.currentTarget
+                this.update({showApplyConfirmation: true, message: ''})
+                window.requestAnimationFrame(() => {
+                    const confirmButton = document.getElementById('setup-confirm-apply')
+                    if (confirmButton) confirmButton.focus()
+                })
+            },
+            closeApplyConfirmation(event) {
+                if (event) event.preventDefault()
+                if (this.state.loading) return
+                this.update({showApplyConfirmation: false})
+                if (this.applyTrigger) {
+                    this.applyTrigger.focus()
+                    this.applyTrigger = null
+                }
+            },
+            closeApplyConfirmationOnEscape(event) {
+                if (event.key === 'Escape' && this.state.showApplyConfirmation) {
+                    this.closeApplyConfirmation(event)
+                }
+            },
+            confirmApply(event) {
+                event.preventDefault()
+                if (this.state.loading || !this.state.preview || !this.state.preview.valid) return
                 this.update({loading: true, message: ''})
                 axios.post('/api/v1/setup/apply', this.payload())
                     .then(response => this.update({
                         preview: response.data,
                         success: true,
+                        showApplyConfirmation: false,
                         message: `Data berhasil diterapkan: ${response.data.summary.create} dibuat, ${response.data.summary.update} diubah, ${response.data.summary.unchanged} tetap.`,
-                    }))
+                    })).then(() => { this.applyTrigger = null })
                     .catch(error => {
                         if (error.response && error.response.status === 422) this.update({preview: error.response.data})
                         this.fail(error, 'Data tidak dapat diterapkan')
                     }).finally(() => this.update({loading: false}))
             },
-            importCSV(event) {
+            async importFile(event) {
                 const file = event.target.files[0]
                 if (!file) return
-                const reader = new FileReader()
-                reader.onload = () => {
-                    try {
-                        const rows = this.parseCSV(String(reader.result || ''))
-                        if (!rows.length || CSV_HEADERS.some((header, index) => rows[0][index] !== header)) throw new Error(`Header harus: ${CSV_HEADERS.join(',')}`)
-                        const students = rows.slice(1).filter(row => row.some(value => value.trim())).map(row => ({
-                            alternativeID: row[0] || '', name: row[1] || '', academicYearLabel: row[2] || '', classLabel: row[3] || '',
-                        }))
-                        if (students.length > 5000) throw new Error('CSV melebihi 5.000 baris siswa')
-                        this.update({students: students.length ? students : [blankStudent()], preview: null, message: `${students.length} baris CSV dimuat`, success: true})
-                    } catch (error) { this.update({message: error.message, success: false}) }
+                try {
+                    const form = new FormData()
+                    form.append('file', file)
+                    const response = await axios.post('/api/v1/setup/students/import', form)
+                    const students = response.data.items || []
+                    this.update({students: students.length ? students : [blankStudent()], preview: null, message: `${students.length} baris dimuat dari ${file.name}`, success: true})
+                } catch (error) {
+                    this.fail(error, 'File tidak dapat dibaca')
+                } finally {
                     event.target.value = ''
                 }
-                reader.onerror = () => this.update({message: 'CSV tidak dapat dibaca', success: false})
-                reader.readAsText(file)
             },
-            parseCSV(text) {
-                const rows = []; let row = []; let cell = ''; let quoted = false
-                for (let i = 0; i < text.length; i++) {
-                    const char = text[i]
-                    if (char === '"' && quoted && text[i + 1] === '"') { cell += '"'; i++ }
-                    else if (char === '"') quoted = !quoted
-                    else if (char === ',' && !quoted) { row.push(cell.trim()); cell = '' }
-                    else if ((char === '\n' || char === '\r') && !quoted) {
-                        if (char === '\r' && text[i + 1] === '\n') i++
-                        row.push(cell.trim()); rows.push(row); row = []; cell = ''
-                    } else cell += char
-                }
-                if (cell || row.length) { row.push(cell.trim()); rows.push(row) }
-                if (rows[0] && rows[0][0]) rows[0][0] = rows[0][0].replace(/^\uFEFF/, '')
-                return rows
-            },
-            downloadTemplate(event) {
+            async downloadExcelTemplate(event) {
                 event.preventDefault()
-                const content = `${CSV_HEADERS.join(',')}\nS-001,Nama Siswa,2026/2027 - Semester 1,KELAS I A\n`
-                const url = URL.createObjectURL(new Blob([content], {type: 'text/csv;charset=utf-8'}))
-                const link = document.createElement('a'); link.href = url; link.download = 'template-data-awal-siswa.csv'; link.click(); URL.revokeObjectURL(url)
+                try {
+                    const response = await axios.get('/api/v1/setup/students/template', {responseType: 'blob'})
+                    const url = URL.createObjectURL(response.data)
+                    const link = document.createElement('a')
+                    link.href = url
+                    link.download = 'template-data-awal-siswa.xlsx'
+                    link.click()
+                    URL.revokeObjectURL(url)
+                } catch (error) {
+                    this.update({message: error.message || 'Template Excel tidak dapat dibuat', success: false})
+                }
             },
             fail(error, fallback) {
                 const message = error.response && error.response.data && error.response.data.message

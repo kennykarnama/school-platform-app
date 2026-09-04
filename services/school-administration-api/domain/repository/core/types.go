@@ -2,9 +2,10 @@ package core
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgconn"
 	"github.com/kennykarnama/school-adminstration-api/domain/entity/student"
 	entityStudent "github.com/kennykarnama/school-adminstration-api/domain/entity/student"
 	"gorm.io/gorm"
@@ -34,28 +35,8 @@ func NewSQLRepository(db *gorm.DB) *sqlRepository {
 
 func (r *sqlRepository) RegisterStudent(ctx context.Context, student *entityStudent.Student, studentClass *entityStudent.StudentClass, createdBy string) error {
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		// do some database operations in the transaction (use 'tx' from this point, not 'db')
 		if err := tx.Create(student).Error; err != nil {
-			// return any error will rollback
 			return err
-		}
-
-		// validate
-
-		var results []*entityStudent.Aggregate
-		err := tx.Table("student").Select("student.id AS student_id, student.name, student_class.id as student_class_id, student_attendance.id as student_attendance_id, student_attendance.attend as attend, student_attendance.attendance_date::date as attendance_date, student_attendance.attendance_type_id as attendance_type_id").Joins("inner join student_class ON student_class.student_id = student.id").
-			Joins("left join student_attendance ON student_attendance.student_class_id = student_class.id").
-			Where("academic_year_id = ? AND class_label = ? AND student_class.deleted_at IS NULL", studentClass.AcademicYearID, studentClass.ClassLabel).Order("student_class.created_at ASC").Find(&results).Error
-		if err != nil {
-			return err
-		}
-
-		m := make(map[string]bool)
-		for _, result := range results {
-			m[result.Name] = true
-		}
-		if _, ok := m[student.Name]; ok {
-			return fmt.Errorf("action=repo.registerStudent err=%v", fmt.Sprintf("duplicate name=%s", student.Name))
 		}
 
 		studentClass.StudentID = student.ID
@@ -64,9 +45,12 @@ func (r *sqlRepository) RegisterStudent(ctx context.Context, student *entityStud
 		if err := tx.Create(studentClass).Error; err != nil {
 			return err
 		}
-		// return nil will commit the whole transaction
 		return nil
 	})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return entityStudent.ErrAlternativeIDAlreadyExists
+	}
 	return err
 }
 

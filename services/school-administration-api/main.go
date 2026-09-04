@@ -96,6 +96,8 @@ func main() {
 	r.Handle("/api/v1/teacher/session/validate", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.Validate))).Methods("GET")
 	r.Handle("/api/v1/setup/preview", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Preview))).Methods("POST")
 	r.Handle("/api/v1/setup/apply", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Apply))).Methods("POST")
+	r.Handle("/api/v1/setup/students/template", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.StudentTemplate))).Methods("GET")
+	r.Handle("/api/v1/setup/students/import", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.ImportStudents))).Methods("POST")
 
 	if cfg.EnableAuth {
 		logrus.Infof("auth enabled")

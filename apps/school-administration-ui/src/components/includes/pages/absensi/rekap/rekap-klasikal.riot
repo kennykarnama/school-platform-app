@@ -308,14 +308,9 @@
             map(items, key) {
                 return _.map(items, key)
             },
-            colorByAttendanceID(id) {
-                const colors = {
-                    "4be1482d-073b-4bad-8310-5de58ea439a2": 'rgba(255, 255, 0, 1)',
-                    "642b270b-d312-4181-b478-716908bb80bb": 'rgba(255, 0, 0, 1)',
-                    "7e79c868-4d31-4a49-9649-bdb82f3f0d3d": 'rgba(0, 255, 0, 1)',
-                    "c3adebf0-7a50-4c25-a0b1-48d5c9dd35ac": 'rgba(25, 64, 39, 0.24)',
-                }
-                return colors[id]
+            colorByAttendanceType(type, index) {
+                const fallback = ['#16A34A', '#F59E0B', '#2563EB', '#DC2626', '#7C3AED', '#0891B2'];
+                return type.color || fallback[index % fallback.length];
             },
             id() {
                 return uuidv4();
@@ -334,8 +329,8 @@
                     let datasetItem = {
                         label: attendanceTypes[i].label,
                         data: [],
-                        borderColor: this.colorByAttendanceID(attendanceTypes[i].ID),
-                        backgroundColor: this.colorByAttendanceID(attendanceTypes[i].ID),
+                        borderColor: this.colorByAttendanceType(attendanceTypes[i], i),
+                        backgroundColor: this.colorByAttendanceType(attendanceTypes[i], i),
                     }
                     let found = attendanceByIDs[attendanceTypes[i].ID]
                     if (!isUndefined(found)) {

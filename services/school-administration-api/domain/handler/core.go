@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -52,10 +53,18 @@ func (h *Handler) RegisterStudent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ts := time.Now().UTC()
+	alternativeID := strings.ToUpper(strings.TrimSpace(req.AlternativeID))
+	if alternativeID == "" {
+		alternativeID, err = util.GenerateStudentAlternativeID()
+		if err != nil {
+			ResponseJson(w, ErrorResponse{Message: err.Error()}, http.StatusInternalServerError)
+			return
+		}
+	}
 
 	newStudent := &student.Student{
 		Name:          req.Name,
-		AlternativeID: req.AlternativeID,
+		AlternativeID: alternativeID,
 		CreatedAt:     ts,
 	}
 	newStudentClass := &student.StudentClass{
@@ -248,6 +257,7 @@ func (h *Handler) ListAttendanceTypes(w http.ResponseWriter, r *http.Request) {
 		respItems = append(respItems, &ListAttendanceTypeItem{
 			ID:    item.ID,
 			Label: item.Label,
+			Color: item.Color,
 		})
 	}
 

@@ -9,6 +9,7 @@ import (
 type AttendanceType struct {
 	ID        string
 	Label     string
+	Color     *string
 	CreatedAt time.Time
 	DeletedAt gorm.DeletedAt
 }

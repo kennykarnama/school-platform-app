@@ -53,12 +53,26 @@ func (r *sqlRepository) Apply(ctx context.Context, req setupSvc.Request, teacher
 		}
 		for _, input := range req.AttendanceTypes {
 			key := fold(input.Label)
-			if len(typeByKey[key]) == 0 {
+			matches := typeByKey[key]
+			if len(matches) == 0 {
+				color := input.Color
 				value := &attendancetype.AttendanceType{ID: uuid.NewV4().String(), Label: input.Label}
+				if color != "" {
+					value.Color = &color
+				}
 				if err := tx.Create(value).Error; err != nil {
 					return err
 				}
 				typeByKey[key] = []*attendancetype.AttendanceType{value}
+			} else if input.Color != "" {
+				value := matches[0]
+				if value.Color == nil || *value.Color != input.Color {
+					if err := tx.Model(value).Update("color", input.Color).Error; err != nil {
+						return err
+					}
+					color := input.Color
+					value.Color = &color
+				}
 			}
 		}
 
@@ -133,7 +147,11 @@ func buildPreview(db *gorm.DB, req setupSvc.Request, teacherID string) (*setupSv
 		case 0:
 			item.Action = setupSvc.ActionCreate
 		case 1:
-			item.Action = setupSvc.ActionUnchanged
+			if input.Color != "" && (matches[0].Color == nil || *matches[0].Color != input.Color) {
+				item.Action = setupSvc.ActionUpdate
+			} else {
+				item.Action = setupSvc.ActionUnchanged
+			}
 		default:
 			item.Errors = []string{"Jenis kehadiran ambigu karena duplikat sudah ada di database"}
 		}

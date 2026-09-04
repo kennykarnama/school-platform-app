@@ -10,6 +10,7 @@ type AcademicYearInput struct {
 
 type AttendanceTypeInput struct {
 	Label string `json:"label"`
+	Color string `json:"color"`
 }
 
 type StudentInput struct {

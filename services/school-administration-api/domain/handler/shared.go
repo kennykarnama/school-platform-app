@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"github.com/kennykarnama/school-adminstration-api/domain/entity/student"
 	"github.com/kennykarnama/school-adminstration-api/domain/entity/user"
 	"net/http"
 )
@@ -28,6 +29,8 @@ func ErrorToHTTPStatus(err error) int {
 		return http.StatusUnauthorized
 	case user.ErrInvalidCredentials:
 		return http.StatusUnauthorized
+	case student.ErrAlternativeIDAlreadyExists:
+		return http.StatusConflict
 	default:
 		return http.StatusInternalServerError
 	}

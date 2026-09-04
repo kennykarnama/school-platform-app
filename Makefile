@@ -52,7 +52,7 @@ run-user:
 	set -a; . ./config/local/user.env; set +a; cd services/school-user-api && go run .
 
 run-ui:
-	cd apps/school-administration-ui && SCHOOL_ADMINISTRATION_API_BASE_URL=http://localhost:8081 npm run start-dev
+	cd apps/school-administration-ui && npm run start-dev
 
 dev: deps-up
 	./scripts/dev.sh

@@ -24,13 +24,25 @@
         </div>
         <div class="column">
             <form>
+                <div class="login-brand">
+                    <div class="education-logo" aria-hidden="true">
+                        <svg viewBox="0 0 64 64">
+                            <path d="M5 23 32 9l27 14-27 14L5 23Z"></path>
+                            <path d="M16 30v13c8 8 24 8 32 0V30"></path>
+                            <path d="M57 25v18"></path>
+                            <circle cx="57" cy="47" r="3"></circle>
+                        </svg>
+                    </div>
+                    <h4>School Platform</h4>
+                    <p class="text-gray">Masuk untuk mengelola kegiatan sekolah</p>
+                </div>
                 <div class="has-icon-left">
                     <input class="form-input" placeholder="NIP" type="text" id="nip">
                     <i class="form-icon icon icon-people"></i>
                 </div>
                 <div class="has-icon-left mt-2">
                     <input class="form-input" placeholder="Password" type="password" id="password">
-                    <i class="form-icon icon icon-link"></i>
+                    <i class="form-icon icon icon-lock"></i>
                 </div>
                 <!-- form structure -->
                 <button class="btn btn-primary input-group-btn mt-2 {state.loadingButton}" type="button" onclick="{login}">Login</button>
@@ -41,6 +53,30 @@
 
         </div>
     </div>
+
+    <style>
+        login .login-brand { margin-bottom: 1.25rem; text-align: center; }
+        login .login-brand h4 { margin: .6rem 0 .15rem; }
+        login .login-brand p { margin: 0; }
+        login .education-logo {
+            align-items: center;
+            background: #eef2ff;
+            border-radius: 50%;
+            display: inline-flex;
+            height: 72px;
+            justify-content: center;
+            width: 72px;
+        }
+        login .education-logo svg { height: 44px; width: 44px; }
+        login .education-logo path,
+        login .education-logo circle {
+            fill: none;
+            stroke: #5755d9;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-width: 4;
+        }
+    </style>
 
 
     <script>

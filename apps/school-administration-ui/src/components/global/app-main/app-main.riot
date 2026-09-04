@@ -18,7 +18,10 @@
                     AsideMenu,
                 },
                 onBeforeMount() {
-                    axios.defaults.baseURL = process.env.SCHOOL_ADMINISTRATION_API_BASE_URL
+                    // Keep the UI and API on the same local hostname so the session
+                    // cookie is sent when the app is opened via localhost or 127.0.0.1.
+                    axios.defaults.baseURL = process.env.SCHOOL_ADMINISTRATION_API_BASE_URL ||
+                        `${window.location.protocol}//${window.location.hostname}:8081`
                     axios.defaults.withCredentials = true
                     axios.interceptors.response.use(response => {
                         return response;

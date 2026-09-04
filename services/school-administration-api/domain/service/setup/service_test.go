@@ -46,6 +46,49 @@ func TestPreviewNormalizesBeforeRepository(t *testing.T) {
 	}
 }
 
+func TestPreviewRejectsInvalidAttendanceColor(t *testing.T) {
+	repo := &fakeRepository{}
+	service := NewService(repo, fakeClassService{})
+	result, err := service.Preview(context.Background(), Request{AttendanceTypes: []AttendanceTypeInput{{Label: "Sakit", Color: "red"}}}, "teacher-1")
+	if err != nil || result.Valid {
+		t.Fatalf("expected invalid color: %+v err=%v", result, err)
+	}
+	if repo.request.AttendanceTypes != nil {
+		t.Fatal("repository must not run for invalid color")
+	}
+}
+
+func TestPreviewGeneratesAlternativeIDsAndAllowsDuplicateNames(t *testing.T) {
+	repo := &fakeRepository{}
+	service := NewService(repo, fakeClassService{})
+	result, err := service.Preview(context.Background(), Request{Students: []StudentInput{
+		{Name: "Budi", AcademicYearLabel: "2026", ClassLabel: "KELAS I A"},
+		{Name: "Budi", AcademicYearLabel: "2026", ClassLabel: "KELAS I A"},
+	}}, "teacher-1")
+	if err != nil || !result.Valid {
+		t.Fatalf("expected duplicate names with generated IDs to be valid: %+v err=%v", result, err)
+	}
+	first := repo.request.Students[0].AlternativeID
+	second := repo.request.Students[1].AlternativeID
+	if first == "" || second == "" || first == second {
+		t.Fatalf("expected distinct generated alternative IDs, got %q and %q", first, second)
+	}
+}
+
+func TestPreviewNormalizesAlternativeIDToUppercase(t *testing.T) {
+	repo := &fakeRepository{}
+	service := NewService(repo, fakeClassService{})
+	result, err := service.Preview(context.Background(), Request{Students: []StudentInput{{
+		AlternativeID: " stu-abc123 ", Name: "Budi", AcademicYearLabel: "2026", ClassLabel: "KELAS I A",
+	}}}, "teacher-1")
+	if err != nil || !result.Valid {
+		t.Fatalf("expected valid preview: %+v err=%v", result, err)
+	}
+	if got := repo.request.Students[0].AlternativeID; got != "STU-ABC123" {
+		t.Fatalf("expected normalized ID, got %q", got)
+	}
+}
+
 func TestPreviewRejectsDuplicateAssignmentAndConflictingName(t *testing.T) {
 	repo := &fakeRepository{}
 	service := NewService(repo, fakeClassService{})

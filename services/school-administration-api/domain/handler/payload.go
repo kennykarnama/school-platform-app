@@ -54,8 +54,9 @@ type ListClassResponse struct {
 }
 
 type ListAttendanceTypeItem struct {
-	ID    string `json:"ID"`
-	Label string `json:"label"`
+	ID    string  `json:"ID"`
+	Label string  `json:"label"`
+	Color *string `json:"color"`
 }
 
 type ListAttendanceType struct {
