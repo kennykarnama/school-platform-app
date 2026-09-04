@@ -102,8 +102,9 @@
                     method: 'POST',
                     url: '/api/v1/teacher/login',
                     data: payload,
-                }).then((resp) => {
+                }).then(() => {
                     router.push('/')
+                    window.dispatchEvent(new CustomEvent('school:teacher-authenticated'))
                 }).catch(e => {
                     console.log("error", e)
                     this.update({

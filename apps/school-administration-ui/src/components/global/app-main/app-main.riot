@@ -25,7 +25,7 @@
                     // routed through Nginx. Local development supplies an explicit URL.
                     axios.defaults.baseURL = process.env.SCHOOL_ADMINISTRATION_API_BASE_URL || ''
                     axios.defaults.withCredentials = true
-                    axios.interceptors.response.use(response => {
+                    this.responseInterceptor = axios.interceptors.response.use(response => {
                         return response;
                     }, error => {
                         if (error.response && error.response.status === 401) {
@@ -34,15 +34,26 @@
                         return Promise.reject(error)
                     });
 
+                    this.teacherLoginHandler = () => this.loadTeacher()
+                    window.addEventListener('school:teacher-authenticated', this.teacherLoginHandler)
+
+                    if (window.location.hash !== '#login') {
+                        this.loadTeacher()
+                    }
+                },
+                onBeforeUnmount() {
+                    window.removeEventListener('school:teacher-authenticated', this.teacherLoginHandler)
+                    axios.interceptors.response.eject(this.responseInterceptor)
+                },
+                loadTeacher() {
                     axios.get(`/api/v1/teacher/session/validate`)
                         .then(res => {
                             this.update({
                                 teacher: res.data,
                             })
                         }).catch(e => {
-                        console.log(e)
-                    }).finally(() => {
-                    });
+                            console.log(e)
+                        });
                 }
             }
 

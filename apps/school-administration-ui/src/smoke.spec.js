@@ -53,8 +53,15 @@ describe('administration UI test environment', () => {
             path.join(__dirname, 'components/includes/aside-menu/aside-menu.riot'),
             'utf8',
         )
+        const login = fs.readFileSync(
+            path.join(__dirname, 'components/includes/pages/login/login.riot'),
+            'utf8',
+        )
 
         expect(appMain).to.include('<aside-menu teacher={state.teacher}>')
+        expect(appMain).to.include("window.location.hash !== '#login'")
+        expect(appMain).to.include("window.addEventListener('school:teacher-authenticated'")
+        expect(login).to.include("window.dispatchEvent(new CustomEvent('school:teacher-authenticated'))")
         expect(asideMenu).to.include('class="teacher-avatar"')
         expect(asideMenu).to.include("axios.post('/api/v1/teacher/logout')")
         expect(asideMenu).to.include("router.push('/#login')")
