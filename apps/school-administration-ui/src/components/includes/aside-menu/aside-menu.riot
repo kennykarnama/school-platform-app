@@ -1,22 +1,78 @@
 <aside-menu>
     <route path="(.*)">
-        <ul class="nav">
-            <li each={item in getItems(state, route)} class="nav-item {isLinkSelected(item, route) ? 'active' : ''}">
-                <a href="{item.link}">{item.label}</a>
-                <template if={item.children}>
-                    <ul class="nav">
-                        <li each={child in item.children} class="nav-item">
-                            <a href="{child.link}">{child.label}</a>
-                        </li>
-                    </ul>
-                </template>
-            </li>
-        </ul>
+        <div if={route.hash !== '#login'} class="sidebar-content">
+            <div class="teacher-profile">
+                <div class="teacher-avatar" aria-hidden="true">{initials(props.teacher && props.teacher.name)}</div>
+                <div class="teacher-details">
+                    <strong>{props.teacher ? props.teacher.name : 'Memuat profil...'}</strong>
+                    <small if={props.teacher && props.teacher.alternativeId} class="text-gray">NIP: {props.teacher.alternativeId}</small>
+                </div>
+            </div>
+
+            <ul class="nav">
+                <li each={item in state.items} class="nav-item {isLinkSelected(item, route) ? 'active' : ''}">
+                    <a href="{item.link}">{item.label}</a>
+                    <template if={item.children}>
+                        <ul class="nav">
+                            <li each={child in item.children} class="nav-item">
+                                <a href="{child.link}">{child.label}</a>
+                            </li>
+                        </ul>
+                    </template>
+                </li>
+            </ul>
+
+            <div if={state.logoutError} class="toast toast-error logout-error">{state.logoutError}</div>
+            <button class="btn btn-link logout-button loading-{state.loggingOut}"
+                    disabled={state.loggingOut}
+                    onclick={logout}>Keluar</button>
+        </div>
     </route>
 
+    <style>
+        aside-menu .sidebar-content { min-width: 0; }
+        aside-menu .teacher-profile {
+            align-items: center;
+            border-bottom: .05rem solid #dadee4;
+            display: flex;
+            gap: .6rem;
+            margin-bottom: .8rem;
+            padding: .25rem .2rem .9rem;
+        }
+        aside-menu .teacher-avatar {
+            align-items: center;
+            background: #5755d9;
+            border-radius: 50%;
+            color: #fff;
+            display: flex;
+            flex: 0 0 2.2rem;
+            font-size: .8rem;
+            font-weight: 600;
+            height: 2.2rem;
+            justify-content: center;
+            letter-spacing: .02em;
+        }
+        aside-menu .teacher-details { min-width: 0; }
+        aside-menu .teacher-details strong,
+        aside-menu .teacher-details small {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        aside-menu .teacher-details strong { font-size: .75rem; }
+        aside-menu .teacher-details small { font-size: .6rem; margin-top: .1rem; }
+        aside-menu .logout-button { margin-top: 1rem; text-align: left; width: 100%; }
+        aside-menu .logout-error { font-size: .6rem; margin-top: .8rem; }
+    </style>
+
     <script>
+        import {router} from '@riotjs/route'
+
         export default {
             state: {
+                loggingOut: false,
+                logoutError: '',
                 items: [
                     {
                         "label": "Home",
@@ -57,11 +113,24 @@
                 }
                 return !isHome && route.hash.includes(item.link)
             },
-            getItems(state, route) {
-                if (route.hash === '#login') {
-                    return [];
-                }
-                return state.items;
+            initials(name) {
+                const words = String(name || '').trim().split(/\s+/).filter(Boolean)
+                if (!words.length) return '--'
+                if (words.length === 1) return Array.from(words[0]).slice(0, 2).join('').toUpperCase()
+                return `${Array.from(words[0])[0]}${Array.from(words[words.length - 1])[0]}`.toUpperCase()
+            },
+            logout(event) {
+                event.preventDefault()
+                if (this.state.loggingOut) return
+                this.update({loggingOut: true, logoutError: ''})
+                axios.post('/api/v1/teacher/logout')
+                    .then(() => router.push('/#login'))
+                    .catch(error => this.update({
+                        logoutError: error.response && error.response.data && error.response.data.message
+                            ? error.response.data.message
+                            : 'Tidak dapat keluar. Silakan coba lagi.',
+                    }))
+                    .finally(() => this.update({loggingOut: false}))
             }
         }
     </script>

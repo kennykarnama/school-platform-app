@@ -103,6 +103,12 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
+type TeacherProfileResponse struct {
+	ID            string `json:"id"`
+	AlternativeID string `json:"alternativeId"`
+	Name          string `json:"name"`
+}
+
 type TransferStudentClassRequest struct {
 	SourceAcademicYearId      string `json:"sourceAcademicYearId" validate:"required"`
 	SourceClassLabel          string `json:"sourceClassLabel" validate:"required"`

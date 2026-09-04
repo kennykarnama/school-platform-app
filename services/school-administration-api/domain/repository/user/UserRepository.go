@@ -9,8 +9,10 @@ import (
 
 type Repository interface {
 	GetUserByAlternativeId(ctx context.Context, alternativeId string) (*user.Teacher, error)
+	GetUserByID(ctx context.Context, id string) (*user.Teacher, error)
 	SaveUserSession(ctx context.Context, session *user.UserSession) error
 	GetUserSessionByToken(ctx context.Context, token string) (*user.UserSession, error)
+	DeleteUserSessionByToken(ctx context.Context, token string) error
 	SaveTeachers(ctx context.Context, newTeachers []*user.Teacher) error
 }
 
@@ -30,6 +32,18 @@ func (m *MySqlRepository) GetUserByAlternativeId(ctx context.Context, alternativ
 			return nil, user.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("action=user.mysql.getUserByAlternativeId alternativeId=%s err=%v", alternativeId, err)
+	}
+	return &userData, nil
+}
+
+func (m *MySqlRepository) GetUserByID(ctx context.Context, id string) (*user.Teacher, error) {
+	var userData user.Teacher
+	err := m.db.WithContext(ctx).Where("id = ?", id).First(&userData).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, user.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("action=user.mysql.getUserByID id=%s err=%v", id, err)
 	}
 	return &userData, nil
 }
@@ -56,6 +70,13 @@ func (m *MySqlRepository) GetUserSessionByToken(ctx context.Context, token strin
 		return nil, fmt.Errorf("action=user.mysql.getUserSessionByToken err=%v", err)
 	}
 	return &session, nil
+}
+
+func (m *MySqlRepository) DeleteUserSessionByToken(ctx context.Context, token string) error {
+	if err := m.db.WithContext(ctx).Where("token = ?", token).Delete(&user.UserSession{}).Error; err != nil {
+		return fmt.Errorf("action=user.mysql.deleteUserSessionByToken err=%v", err)
+	}
+	return nil
 }
 
 func (m *MySqlRepository) SaveTeachers(ctx context.Context, newTeachers []*user.Teacher) error {

@@ -13,6 +13,8 @@ import (
 type Service interface {
 	Login(ctx context.Context, alternativeId, password string) (*user2.UserSession, error)
 	Validate(ctx context.Context, token string) (*user2.UserSession, error)
+	Profile(ctx context.Context, userID string) (*user2.Teacher, error)
+	Logout(ctx context.Context, token string) error
 	RegisterTeachers(ctx context.Context, teachers []*user2.Teacher) error
 }
 
@@ -62,6 +64,14 @@ func (s *service) Validate(ctx context.Context, token string) (*user2.UserSessio
 		return nil, user2.ErrSessionHasExpired
 	}
 	return userSession, nil
+}
+
+func (s *service) Profile(ctx context.Context, userID string) (*user2.Teacher, error) {
+	return s.repo.GetUserByID(ctx, userID)
+}
+
+func (s *service) Logout(ctx context.Context, token string) error {
+	return s.repo.DeleteUserSessionByToken(ctx, token)
 }
 
 func (s *service) RegisterTeachers(ctx context.Context, teachers []*user2.Teacher) error {

@@ -55,7 +55,7 @@ func main() {
 
 	userRepo := user.NewMySqlRepository(dbconn)
 	userSvc := user2.NewService(userRepo, cfg)
-	userHandler := handler.NewUserHandler(userSvc, v, cfg.SessionCookieSecure)
+	userHandler := handler.NewUserHandler(userSvc, v, cfg.SessionCookieSecure, cfg.EnableAuth)
 	setupRepository := setupRepo.NewSQLRepository(dbconn)
 	setupService := setupSvc.NewService(setupRepository, classSvc)
 	setupHandler := handler.NewSetupHandler(setupService)
@@ -94,6 +94,7 @@ func main() {
 
 	r.Handle("/api/v1/teacher/login", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.Login))).Methods("POST")
 	r.Handle("/api/v1/teacher/session/validate", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.Validate))).Methods("GET")
+	r.Handle("/api/v1/teacher/logout", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.Logout))).Methods("POST")
 	r.Handle("/api/v1/setup/preview", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Preview))).Methods("POST")
 	r.Handle("/api/v1/setup/apply", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Apply))).Methods("POST")
 	r.Handle("/api/v1/setup/students/template", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.StudentTemplate))).Methods("GET")

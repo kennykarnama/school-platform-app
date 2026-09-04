@@ -43,4 +43,20 @@ describe('administration UI test environment', () => {
             'SCHOOL_ADMINISTRATION_API_BASE_URL=http://127.0.0.1:8081',
         )
     })
+
+    it('shows the authenticated teacher profile and uses the logout endpoint', () => {
+        const appMain = fs.readFileSync(
+            path.join(__dirname, 'components/global/app-main/app-main.riot'),
+            'utf8',
+        )
+        const asideMenu = fs.readFileSync(
+            path.join(__dirname, 'components/includes/aside-menu/aside-menu.riot'),
+            'utf8',
+        )
+
+        expect(appMain).to.include('<aside-menu teacher={state.teacher}>')
+        expect(asideMenu).to.include('class="teacher-avatar"')
+        expect(asideMenu).to.include("axios.post('/api/v1/teacher/logout')")
+        expect(asideMenu).to.include("router.push('/#login')")
+    })
 })
