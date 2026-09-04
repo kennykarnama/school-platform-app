@@ -120,6 +120,7 @@ Stable tags publish `1.0.0`, `sha-...`, and `latest` image tags. Prerelease tags
 Every verified push to `main` publishes `experimental` and `sha-...` tags for all four images. `experimental` is mutable and intended for integration testing; use its immutable `sha-...` companion when a deployment must be reproducible. Main-branch builds do not move `latest` or create GitHub Releases.
 
 To build another branch, open **Actions → Build and release Docker images → Run workflow**, select the branch, and start the workflow. A branch named `feature/tenant-admin`, for example, publishes `branch-feature-tenant-admin` plus the immutable `sha-...` tag. Manual branch runs do not update `experimental` or `latest` and do not create a GitHub Release.
+Every verified push to `main` publishes `experimental` and `sha-...` tags. To build another branch, open **Actions → Build and release Docker images → Run workflow**, select the branch, and start the workflow. A branch such as `feature/tenant-admin` publishes `branch-feature-tenant-admin` plus its immutable `sha-...` tag. Manual branch runs do not update `experimental` or `latest` and do not create GitHub Releases.
 
 After the images are published, the workflow creates a GitHub Release containing a VM-ready `school-platform-app-v1.0.0-linux-amd64.tar.gz` archive and its SHA-256 checksum. The archive contains Compose configuration and deployment instructions; its default `IMAGE_TAG=latest` pulls the newest stable images.
 

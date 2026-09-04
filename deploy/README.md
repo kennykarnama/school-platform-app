@@ -50,6 +50,11 @@ The `experimental` tag follows the newest verified commit on `main` and must not
 Run **Build and release Docker images** from the GitHub Actions page and select the desired branch in the **Run workflow** dialog. The images are published with a sanitized `branch-<branch-name>` tag; for example, `feature/tenant-admin` becomes `branch-feature-tenant-admin`.
 
 Set that value in `.env`, or export it for the current shell, then recreate the stack:
+## Deploy an experimental or branch build
+
+Pushes to `main` publish the `experimental` image tag. Other branches can be built manually from **Actions → Build and release Docker images → Run workflow** and receive a sanitized `branch-<branch-name>` tag. For example, `feature/tenant-admin` becomes `branch-feature-tenant-admin`.
+
+Set the selected tag in `.env`, or export it for the current shell, then recreate the stack:
 
 ```sh
 export IMAGE_TAG=branch-feature-tenant-admin
@@ -58,6 +63,7 @@ docker compose up -d --remove-orphans
 ```
 
 Use the accompanying immutable `sha-...` tag when the branch deployment must be reproducible.
+Use the accompanying immutable `sha-...` tag when the deployment must be reproducible.
 
 ## Logs and migration status
 
