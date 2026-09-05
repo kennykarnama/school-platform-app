@@ -1,0 +1,164 @@
+/* Shared layout rules for phones, tablets, and narrow desktop windows. */
+html {
+    box-sizing: border-box;
+}
+
+*, *::before, *::after { box-sizing: inherit; }
+
+body {
+    margin: 0;
+    min-width: 0;
+}
+
+.app-shell {
+    margin: 0 auto;
+    max-width: 1440px;
+    padding: 1.25rem;
+    width: 100%;
+}
+
+.app-layout { align-items: flex-start; }
+.app-sidebar { position: sticky; top: 1.25rem; }
+.app-page, .column { min-width: 0; }
+
+app-main, app-content, aside-menu,
+app-content > *, rekap-chart { display: block; min-width: 0; }
+
+.form-input, .form-select { min-width: 0; max-width: 100%; }
+h1, h2, h3, h4, p, .toast { overflow-wrap: anywhere; }
+
+app-content,
+app-content > *,
+.container { max-width: 100%; }
+
+img, canvas, svg { max-width: 100%; }
+
+/* Wide data tables should scroll inside the page, never widen the viewport. */
+.table-scroll,
+table.table {
+    max-width: 100%;
+}
+
+table.table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+}
+
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll > table.table { display: table; overflow: visible; }
+
+.modal .modal-container { max-width: min(30rem, calc(100vw - 1.5rem)); }
+
+@media (max-width: 840px) {
+    .app-shell { padding: .9rem; }
+    .app-layout { display: block; margin: 0; }
+    .app-sidebar,
+    .app-page { max-width: 100%; padding: 0; width: 100%; }
+    .app-sidebar {
+        background: #fff;
+        border-bottom: .05rem solid #dadee4;
+        margin-bottom: 1rem;
+        padding-bottom: .75rem;
+        position: relative;
+        top: auto;
+        z-index: 10;
+    }
+
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.35rem; }
+    h3 { font-size: 1.15rem; }
+    .hero.hero-lg .hero-body,
+    .hero .hero-body { padding: 1.5rem 1rem; }
+
+    /* Legacy filter rows use bare col-* classes; stack them at tablet width. */
+    absensi-input > .container > .columns,
+    rekap > .container > .columns,
+    rekap-klasikal > .container > .columns {
+        display: grid;
+        gap: .6rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin: 0;
+    }
+
+    absensi-input > .container > .columns > [class*="col"],
+    rekap > .container > .columns > [class*="col"],
+    rekap-klasikal > .container > .columns > [class*="col"] {
+        margin: 0 !important;
+        max-width: none;
+        width: auto;
+    }
+
+    .app-page administration .column,
+    .app-page platform-schools .column,
+    .app-page setup .column { padding-bottom: .35rem; }
+}
+
+@media (max-width: 600px) {
+    .app-shell { padding: .65rem; }
+    .form-input, .form-select { font-size: 16px; min-height: 2.2rem; }
+    .btn:not(.btn-clear) { height: auto; min-height: 2.2rem; white-space: normal; }
+    .input-group .form-input { width: 100%; }
+    .app-page setup .section-title > div:last-child { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .app-page administration .class-list .chip { height: auto; white-space: normal; overflow-wrap: anywhere; }
+    absensi-transfer-form .column:empty { display: none; }
+
+    absensi-input > .container > .columns,
+    rekap > .container > .columns,
+    rekap-klasikal > .container > .columns { grid-template-columns: 1fr; }
+
+    login > .columns.mt-2 { display: block; margin: 1rem 0 0; }
+    login > .columns.mt-2 > .column { max-width: 100%; padding: 0; width: 100%; }
+    login > .columns.mt-2 > .column:empty { display: none; }
+    login form { margin: 0 auto; max-width: 24rem; }
+    login form > .btn { min-height: 2.2rem; width: 100%; }
+
+    absensi-input-form > .container[style] {
+        margin-top: 1rem !important;
+        padding-right: 0 !important;
+    }
+
+    absensi-transfer-form > .container > .columns { display: block; margin: 0; }
+    absensi-transfer-form > .container > .columns > .column { padding: .4rem 0; width: 100%; }
+    absensi-transfer-form .divider-vert {
+        height: auto;
+        margin: .75rem 0;
+        padding: 0;
+    }
+
+    .app-page setup .section-title {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: .5rem;
+    }
+    .app-page setup .section-title > div,
+    .app-page setup .section-title button,
+    .app-page setup .file-button { margin-left: 0; }
+    .app-page setup .action-bar { align-items: stretch; flex-direction: column; }
+    .app-page setup .action-bar .btn { min-height: 2.2rem; width: 100%; }
+
+    .app-page administration section,
+    .app-page platform-schools section,
+    .app-page setup section { margin-top: 1.4rem; }
+
+    .app-page administration section > .input-group { display: flex; flex-direction: column; }
+    .app-page administration section > .input-group .input-group-btn {
+        border-radius: .1rem;
+        margin-top: .4rem;
+        min-height: 2.2rem;
+        width: 100%;
+    }
+
+    .app-page change-password .password-page { margin: 1rem 0 0; }
+    .app-page change-password .password-page > .column { padding: 0; }
+    .app-page change-password .btn { min-height: 2.2rem; width: 100%; }
+
+    absensi-table .empty-action { display: grid; gap: .5rem; }
+    absensi-table .empty-action .btn { margin: 0 !important; width: 100%; }
+    absensi-table > .container[style] .columns { display: block; margin: 0; }
+    absensi-table > .container[style] [class*="col"] { margin-bottom: .5rem; width: 100%; }
+
+    .modal-container .modal-footer { display: flex; gap: .4rem; }
+    .modal-container .modal-footer .btn { margin: 0 !important; }
+}

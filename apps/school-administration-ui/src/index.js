@@ -1,4 +1,5 @@
 import '@riotjs/hot-reload'
+import './responsive.css'
 import {mount, register} from 'riot'
 import registerGlobalComponents from './register-global-components'
 import {Route, Router} from '@riotjs/route';

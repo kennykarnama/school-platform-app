@@ -11,13 +11,19 @@
                 </div>
             </div>
 
+            <button class="btn mobile-menu-button" type="button" aria-controls="school-navigation" aria-expanded={state.menuOpen ? 'true' : 'false'} onclick={toggleMenu}>
+                <i class="icon icon-menu"></i>
+                <span>{state.menuOpen ? 'Tutup menu' : 'Buka menu'}</span>
+            </button>
+
+            <div id="school-navigation" onkeydown={onMenuKeydown} class="menu-panel {state.menuOpen ? 'is-open' : ''}">
             <ul class="nav">
                 <li each={item in visibleItems()} class="nav-item {isLinkSelected(item, route) ? 'active' : ''}">
-                    <a href="{item.link}">{item.label}</a>
+                    <a href="{item.link}" onclick={closeMenu}>{item.label}</a>
                     <template if={item.children}>
                         <ul class="nav">
                             <li each={child in item.children} class="nav-item">
-                                <a href="{child.link}">{child.label}</a>
+                                <a href="{child.link}" onclick={closeMenu}>{child.label}</a>
                             </li>
                         </ul>
                     </template>
@@ -28,6 +34,7 @@
             <button class="btn btn-link logout-button loading-{state.loggingOut}"
                     disabled={state.loggingOut}
                     onclick={logout}>Keluar</button>
+            </div>
         </div>
     </route>
 
@@ -66,6 +73,31 @@
         aside-menu .teacher-details small { font-size: .6rem; margin-top: .1rem; }
         aside-menu .logout-button { margin-top: 1rem; text-align: left; width: 100%; }
         aside-menu .logout-error { font-size: .6rem; margin-top: .8rem; }
+        aside-menu .mobile-menu-button { display: none; }
+
+        @media (max-width: 840px) {
+            aside-menu .teacher-profile { border-bottom: 0; margin: 0; padding: 0; }
+            aside-menu .sidebar-content { position: relative; }
+            aside-menu .mobile-menu-button {
+                align-items: center;
+                display: inline-flex;
+                gap: .4rem;
+                margin-top: .75rem;
+                width: 100%;
+            }
+            aside-menu .menu-panel { display: none; }
+            aside-menu .menu-panel.is-open {
+                background: #fff;
+                border: .05rem solid #dadee4;
+                border-radius: .25rem;
+                box-shadow: 0 .2rem .8rem rgba(48, 55, 66, .12);
+                display: block;
+                padding: .5rem .75rem .75rem;
+                margin-top: .35rem;
+                z-index: 20;
+            }
+            aside-menu .nav a { min-height: 2.2rem; padding: .5rem .4rem; }
+        }
     </style>
 
     <script>
@@ -73,6 +105,7 @@
 
         export default {
             state: {
+                menuOpen: false,
                 loggingOut: false,
                 logoutError: '',
                 items: [
@@ -121,6 +154,19 @@
                         "roles": ["platform_admin"],
                     }
                 ]
+            },
+            toggleMenu(event) {
+                event.preventDefault()
+                this.update({menuOpen: !this.state.menuOpen})
+            },
+            onMenuKeydown(event) {
+                if (event.key === 'Escape') {
+                    this.closeMenu()
+                    this.root.querySelector('.mobile-menu-button').focus()
+                }
+            },
+            closeMenu() {
+                this.update({menuOpen: false})
             },
             isLinkSelected(item, route) {
                 const isHome = !route.hash || route.hash === '#'
