@@ -86,7 +86,7 @@
                     <button class="btn btn-sm" onclick={addStudent}>Tambah</button>
                 </div>
             </div>
-            <div class="table-scroll">
+            <div class="table-scroll" tabindex="0" role="region" aria-label="Data awal">
                 <table class="table table-striped">
                     <thead><tr><th>ID Alternatif</th><th>Nama</th><th>Tahun Ajaran</th><th>Kelas</th><th></th></tr></thead>
                     <tbody>
@@ -119,7 +119,7 @@
                 {state.preview.valid ? 'Data valid dan siap diterapkan.' : 'Perbaiki kesalahan sebelum menerapkan data.'}
                 Buat: {state.preview.summary.create}, ubah: {state.preview.summary.update}, tetap: {state.preview.summary.unchanged}.
             </div>
-            <div class="table-scroll">
+            <div class="table-scroll" tabindex="0" role="region" aria-label="Data awal">
                 <table class="table table-striped">
                     <thead><tr><th>Jenis</th><th>Baris</th><th>Kunci</th><th>Aksi</th><th>Keterangan</th></tr></thead>
                     <tbody>

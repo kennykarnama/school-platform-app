@@ -72,24 +72,6 @@ table.table {
     .hero.hero-lg .hero-body,
     .hero .hero-body { padding: 1.5rem 1rem; }
 
-    /* Legacy filter rows use bare col-* classes; stack them at tablet width. */
-    absensi-input > .container > .columns,
-    rekap > .container > .columns,
-    rekap-klasikal > .container > .columns {
-        display: grid;
-        gap: .6rem;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        margin: 0;
-    }
-
-    absensi-input > .container > .columns > [class*="col"],
-    rekap > .container > .columns > [class*="col"],
-    rekap-klasikal > .container > .columns > [class*="col"] {
-        margin: 0 !important;
-        max-width: none;
-        width: auto;
-    }
-
     .app-page administration .column,
     .app-page platform-schools .column,
     .app-page setup .column { padding-bottom: .35rem; }
@@ -104,20 +86,7 @@ table.table {
     .app-page administration .class-list .chip { height: auto; white-space: normal; overflow-wrap: anywhere; }
     absensi-transfer-form .column:empty { display: none; }
 
-    absensi-input > .container > .columns,
-    rekap > .container > .columns,
-    rekap-klasikal > .container > .columns { grid-template-columns: 1fr; }
-
-    login > .columns.mt-2 { display: block; margin: 1rem 0 0; }
-    login > .columns.mt-2 > .column { max-width: 100%; padding: 0; width: 100%; }
-    login > .columns.mt-2 > .column:empty { display: none; }
-    login form { margin: 0 auto; max-width: 24rem; }
     login form > .btn { min-height: 2.2rem; width: 100%; }
-
-    absensi-input-form > .container[style] {
-        margin-top: 1rem !important;
-        padding-right: 0 !important;
-    }
 
     absensi-transfer-form > .container > .columns { display: block; margin: 0; }
     absensi-transfer-form > .container > .columns > .column { padding: .4rem 0; width: 100%; }
@@ -161,4 +130,68 @@ table.table {
 
     .modal-container .modal-footer { display: flex; gap: .4rem; }
     .modal-container .modal-footer .btn { margin: 0 !important; }
+}
+
+/* Login uses the whole viewport instead of reserving the navigation column. */
+.app-shell:has(login) { max-width: none; padding: 0; }
+.app-layout:has(login) { display: block; margin: 0; }
+.app-layout:has(login) > .app-sidebar { display: none; }
+.app-layout:has(login) > .app-page { width: 100%; max-width: 100%; padding: 0; }
+
+/* Let navigation keep a readable width on small desktop screens. */
+@media (min-width: 841px) {
+    .app-layout { display: grid; grid-template-columns: minmax(11rem, 1fr) minmax(0, 5fr); }
+    .app-layout > .app-sidebar, .app-layout > .app-page { width: auto; }
+}
+
+.filter-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    align-items: start;
+    gap: .6rem;
+    margin-bottom: 1rem;
+}
+.filter-field { min-width: 0; }
+.filter-bar .form-group { margin-bottom: 0; }
+.filter-bar .btn-action { width: 2.2rem; min-height: 2.2rem; }
+.app-page .student-form { margin: 1rem 0 0; max-width: 28rem; }
+.app-page .password-form { width: 100%; max-width: 26rem; }
+
+.app-page setup .section-title { flex-wrap: wrap; gap: .6rem; }
+.app-page setup .section-title > div:last-child { display: flex; flex-wrap: wrap; gap: .4rem; }
+.app-page setup .file-button { margin: 0; }
+.app-page setup .action-bar { flex-wrap: wrap; }
+.app-page administration .access-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
+.app-page administration .access-year { min-width: 0; overflow-wrap: anywhere; }
+.app-page administration .class-list .chip { max-width: 100%; height: auto; white-space: normal; overflow-wrap: anywhere; }
+.app-page platform-schools table { min-width: 680px; }
+.table-scroll:focus-visible, table.table:focus-visible { outline: 2px solid #5755d9; outline-offset: 2px; }
+absensi-table { display: block; min-width: 0; }
+absensi-table td:first-child { min-width: 10rem; max-width: 20rem; white-space: normal; overflow-wrap: anywhere; }
+absensi-table .form-select { min-width: 10rem; }
+rekap-chart { position: relative; width: 100%; height: clamp(18rem, 45vw, 26rem); margin-top: 1rem; }
+.modal .modal-container { width: 100%; max-height: calc(100dvh - 2rem); }
+.modal-container .modal-footer { flex-wrap: wrap; }
+
+@media (max-width: 1100px) and (min-width: 601px) {
+    .app-page administration .columns > .column,
+    .app-page platform-schools .columns > .column { flex: 0 0 50%; max-width: 50%; width: 50%; padding-bottom: .6rem; }
+}
+@media (max-width: 840px) {
+    .filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .app-page .password-page { margin-top: 1rem; }
+}
+@media (max-width: 600px) {
+    .filter-bar { grid-template-columns: minmax(0, 1fr); }
+    .filter-bar .btn-action { width: 100%; }
+    .app-page .student-form { padding: 0; }
+    .app-page platform-schools section > .columns .btn,
+    .app-page administration section > .columns .btn,
+    .student-form > .btn { width: 100%; }
+    .app-page .form-checkbox { padding-top: .5rem; padding-bottom: .5rem; min-height: 2.2rem; }
+    .app-page .form-checkbox .form-icon { top: .65rem; }
+    .modal { padding: .65rem; }
+    .modal .modal-container { max-height: calc(100dvh - 1.3rem); }
+    .modal-container .modal-footer .btn { flex: 1 1 auto; }
+    .empty { padding: 1.5rem .75rem; }
 }

@@ -1,7 +1,7 @@
 <absensi-input>
     <div class="container" style="margin-bottom: 2%;">
-        <div class="columns">
-            <div class="col-3" style="margin-right: 2%;">
+        <div class="filter-bar">
+            <div class="filter-field">
                 <div class="form-group {state.isSelectAcademicLoading}">
                     <select id="select-academic_year" class="form-select" onchange={onChangeAcademic}>
                         <option disabled selected>Tahun Akademik - Semester</option>
@@ -11,7 +11,7 @@
                     </select>
                 </div>
             </div>
-            <div class="col-2" style="margin-right: 2%;">
+            <div class="filter-field">
                 <div class="form-group {state.isSelectClassLoading}">
                     <select id="select-class_label" class="form-select" onchange={onChangeClass}>
                         <option disabled selected>Pilih Kelas</option>
@@ -19,12 +19,12 @@
                     </select>
                 </div>
             </div>
-            <div class="col-2" style="margin-right: 2%">
+            <div class="filter-field">
                 <input class="form-input" type="text" id="attendance_date" placeholder="Attendance date"
                        onchange={onChangeAttendanceDate}>
             </div>
-            <div class="col-3">
-                <button class="btn btn-action" onclick={search}><i class="icon icon-search"></i></button>
+            <div class="filter-field">
+                <button class="btn btn-action" aria-label="Cari" onclick={search}><i class="icon icon-search"></i></button>
             </div>
         </div>
     </div>

@@ -2,8 +2,8 @@
 
     <!--    filter buttons -->
     <div class="container">
-        <div class="columns">
-            <div class="col" style="margin-right: 2%;">
+        <div class="filter-bar">
+            <div class="filter-field">
                 <div class="form-group {state.isSelectAcademicLoading}">
                     <select id="select-academic_year" class="form-select" onchange={onChangeAcademic}>
                         <option disabled selected>Tahun Akademik - Semester</option>
@@ -13,7 +13,7 @@
                     </select>
                 </div>
             </div>
-            <div class="col" style="margin-right: 2%;">
+            <div class="filter-field">
                 <div class="form-group {state.isSelectClassLoading}">
                     <select id="select-class_label" class="form-select" onchange={onChangeClass}>
                         <option disabled selected>Pilih Kelas</option>
@@ -21,16 +21,16 @@
                     </select>
                 </div>
             </div>
-            <div class="col" style="margin-right: 2%">
+            <div class="filter-field">
                 <input class="form-input" type="text" id="attendance_date_from" placeholder="Dari tanggal"
                        onchange={onChangeAttendanceDate}>
             </div>
-            <div class="col" style="margin-right: 2%">
+            <div class="filter-field">
                 <input class="form-input" type="text" id="attendance_date_to" placeholder="Sampai tanggal"
                        onchange={onChangeAttendanceDate}>
             </div>
-            <div class="col">
-                <button class="btn btn-action" onclick={showStats}><i class="icon icon-search"></i></button>
+            <div class="filter-field">
+                <button class="btn btn-action" aria-label="Cari" onclick={showStats}><i class="icon icon-search"></i></button>
             </div>
         </div>
     </div>
@@ -51,7 +51,7 @@
                     <div class="tile-title">{humanizeDateFragments(period)}</div>
                 </div>
             </div>
-            <table class="table table-scroll">
+            <table class="table table-scroll" tabindex="0" aria-label="Rekap absensi">
                 <thead>
                 <th>Tanggal</th>
                 <th each={attendanceType in state.attendanceTypes}>{attendanceType.label}</th>

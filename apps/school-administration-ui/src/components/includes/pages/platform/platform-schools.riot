@@ -15,6 +15,7 @@
             </div>
         </section>
         <section>
+            <div class="table-scroll" tabindex="0" role="region" aria-label="Daftar sekolah">
             <table class="table table-striped">
                 <thead><tr><th>Sekolah</th><th>Kode</th><th>Status</th><th></th></tr></thead>
                 <tbody><tr each={school in state.schools}>
@@ -24,6 +25,7 @@
                     <td><button class="btn btn-sm" onclick={() => saveSchool(school)}>Simpan</button> <button class="btn btn-sm {school.active ? 'btn-error' : 'btn-success'}" onclick={() => setActive(school)}>{school.active ? 'Nonaktifkan' : 'Aktifkan'}</button></td>
                 </tr></tbody>
             </table>
+            </div>
         </section>
     </div>
     <style>platform-schools section { margin-top: 2rem; } platform-schools .column { margin-bottom: .5rem; }</style>
