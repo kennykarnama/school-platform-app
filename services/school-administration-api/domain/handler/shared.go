@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/kennykarnama/school-adminstration-api/domain/entity/student"
 	"github.com/kennykarnama/school-adminstration-api/domain/entity/user"
+	"gorm.io/gorm"
 	"net/http"
 )
 
@@ -35,6 +36,8 @@ func ErrorToHTTPStatus(err error) int {
 		return http.StatusForbidden
 	case student.ErrAlternativeIDAlreadyExists:
 		return http.StatusConflict
+	case gorm.ErrRecordNotFound:
+		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError
 	}

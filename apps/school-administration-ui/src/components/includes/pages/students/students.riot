@@ -1,0 +1,179 @@
+<students>
+    <div class="container students-page">
+        <h2>Manajemen Siswa</h2>
+        <p class="text-gray">Cari siswa berdasarkan nama atau ID dan lihat penempatan kelas aktif.</p>
+
+        <div if={state.message} class="toast toast-{state.success ? 'success' : 'error'}">
+            <button class="btn btn-clear float-right" onclick={clearMessage}></button>
+            {state.message}
+        </div>
+
+        <section if={isAdmin()} class="student-create-section">
+            <h4>Tambah Siswa</h4>
+            <div class="student-create-grid">
+                <input class="form-input" aria-label="Nama siswa baru" placeholder="Nama lengkap" value={state.newStudent.name} oninput={event => editNewStudent('name', event)}>
+                <input class="form-input" aria-label="ID alternatif siswa baru" placeholder="ID alternatif (opsional)" value={state.newStudent.alternativeID} oninput={event => editNewStudent('alternativeID', event)}>
+                <select class="form-select" aria-label="Tahun akademik siswa baru" value={state.newStudent.academicYearID} onchange={event => editNewStudent('academicYearID', event)}>
+                    <option value="">Pilih tahun akademik</option>
+                    <option each={year in state.years} value={year.ID}>{year.label}</option>
+                </select>
+                <select class="form-select" aria-label="Kelas siswa baru" value={state.newStudent.classLabel} onchange={event => editNewStudent('classLabel', event)}>
+                    <option value="">Pilih kelas</option>
+                    <option each={item in state.classes} value={item.label}>{item.label}</option>
+                </select>
+                <button class="btn btn-primary loading-{state.creating}" disabled={state.creating} onclick={createStudent}>Tambah Siswa</button>
+            </div>
+            <small class="text-gray">ID alternatif akan dibuat otomatis jika dikosongkan dan tidak dapat diubah setelah siswa dibuat.</small>
+        </section>
+
+        <section>
+            <h4>Daftar Siswa</h4>
+            <div class="student-filters">
+                <input class="form-input" aria-label="Cari siswa" placeholder="Cari nama atau ID" value={state.filters.query} oninput={editQuery} onkeydown={onSearchKeydown}>
+                <select class="form-select" aria-label="Filter tahun akademik" value={state.filters.academicYearID} onchange={event => applyFilter('academicYearID', event)}>
+                    <option value="">Semua tahun akademik</option>
+                    <option each={year in state.years} value={year.ID}>{year.label}</option>
+                </select>
+                <select class="form-select" aria-label="Filter kelas" value={state.filters.classLabel} onchange={event => applyFilter('classLabel', event)}>
+                    <option value="">Semua kelas</option>
+                    <option each={item in state.classes} value={item.label}>{item.label}</option>
+                </select>
+                <button class="btn btn-primary" onclick={search}>Cari</button>
+                <button class="btn" onclick={resetFilters}>Reset</button>
+            </div>
+
+            <div if={state.loading} class="loading loading-lg student-loading" aria-label="Memuat siswa"></div>
+            <div if={!state.loading && state.students.length === 0} class="empty">
+                <div class="empty-icon"><i class="icon icon-people icon-4x"></i></div>
+                <p class="empty-title h5">Tidak ada siswa ditemukan</p>
+                <p class="empty-subtitle">Ubah pencarian atau filter untuk melihat siswa lain.</p>
+            </div>
+            <div if={!state.loading && state.students.length > 0} class="table-scroll" tabindex="0" role="region" aria-label="Daftar siswa">
+                <table class="table table-striped">
+                    <thead><tr><th>ID Siswa</th><th>Nama</th><th>Penempatan Aktif</th><th if={isAdmin()}>Aksi</th></tr></thead>
+                    <tbody>
+                        <tr each={item in state.students}>
+                            <td><code>{item.alternativeID}</code></td>
+                            <td>
+                                <input if={state.editingID === item.id} class="form-input input-sm" aria-label="Edit nama siswa" value={state.editingName} oninput={event => update({editingName: event.target.value})} onkeydown={event => onEditKeydown(item, event)}>
+                                <strong if={state.editingID !== item.id}>{item.name}</strong>
+                            </td>
+                            <td>
+                                <span if={!item.assignments || item.assignments.length === 0} class="text-gray">Belum ada penempatan aktif</span>
+                                <span each={assignment in item.assignments} class="chip assignment-chip">{assignment.academicYearLabel} · {assignment.classLabel}</span>
+                            </td>
+                            <td if={isAdmin()}>
+                                <div if={state.editingID !== item.id} class="action-buttons"><button class="btn btn-sm" onclick={() => startEdit(item)}>Ubah Nama</button></div>
+                                <div if={state.editingID === item.id} class="action-buttons">
+                                    <button class="btn btn-sm btn-success loading-{state.saving}" disabled={state.saving} onclick={() => saveName(item)}>Simpan</button>
+                                    <button class="btn btn-sm" disabled={state.saving} onclick={cancelEdit}>Batal</button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div if={!state.loading && state.total > 0} class="student-pagination">
+                <span>Menampilkan {pageStart()}–{pageEnd()} dari {state.total} siswa</span>
+                <div>
+                    <button class="btn btn-sm" disabled={state.page <= 1} onclick={() => changePage(state.page - 1)}>Sebelumnya</button>
+                    <span>Halaman {state.page} dari {totalPages()}</span>
+                    <button class="btn btn-sm" disabled={state.page >= totalPages()} onclick={() => changePage(state.page + 1)}>Berikutnya</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <style>
+        students section { margin-top: 2rem; }
+        students .student-create-grid, students .student-filters { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
+        students .student-create-section small { display: block; margin-top: .5rem; }
+        students .table-scroll { overflow-x: auto; }
+        students table { min-width: 720px; }
+        students .assignment-chip { height: auto; margin: .1rem .25rem .1rem 0; white-space: normal; }
+        students .action-buttons { display: flex; flex-wrap: wrap; gap: .35rem; }
+        students .student-loading { margin: 2rem auto; }
+        students .student-pagination { align-items: center; display: flex; flex-wrap: wrap; gap: .7rem; justify-content: space-between; margin-top: 1rem; }
+        students .student-pagination > div { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; }
+        @media (max-width: 600px) {
+            students .student-create-grid, students .student-filters { grid-template-columns: 1fr; }
+            students .student-create-grid .btn, students .student-filters .btn { width: 100%; }
+        }
+    </style>
+
+    <script>
+        const blankStudent = () => ({name: '', alternativeID: '', academicYearID: '', classLabel: ''})
+        export default {
+            state: {
+                role: '', students: [], years: [], classes: [], filters: {query: '', academicYearID: '', classLabel: ''},
+                page: 1, pageSize: 50, total: 0, loading: true, creating: false, saving: false,
+                newStudent: blankStudent(), editingID: '', editingName: '', message: '', success: false,
+            },
+            onMounted() {
+                Promise.all([axios.get('/api/v1/teacher/session/validate'), axios.get('/api/v1/academic-years'), axios.get('/api/v1/classes')])
+                    .then(([profile, years, classes]) => {
+                        this.update({role: profile.data.role, years: years.data.items || [], classes: classes.data.items || []})
+                        this.loadStudents(1)
+                    }).catch(error => { this.fail(error, 'Data siswa tidak dapat dimuat'); this.update({loading: false}) })
+            },
+            isAdmin() { return this.state.role === 'school_admin' },
+            editNewStudent(field, event) { this.state.newStudent[field] = event.target.value; this.update() },
+            createStudent(event) {
+                event.preventDefault()
+                if (this.state.creating) return
+                const student = this.state.newStudent
+                if (!student.name.trim() || !student.academicYearID || !student.classLabel) {
+                    this.update({message: 'Nama, tahun akademik, dan kelas wajib diisi', success: false})
+                    return
+                }
+                this.update({creating: true, message: ''})
+                axios.post('/api/v1/students', student).then(() => {
+                    this.update({newStudent: blankStudent(), message: 'Siswa berhasil ditambahkan', success: true})
+                    this.loadStudents(1)
+                }).catch(error => this.fail(error, 'Siswa tidak berhasil ditambahkan')).finally(() => this.update({creating: false}))
+            },
+            editQuery(event) { this.state.filters.query = event.target.value; this.update() },
+            onSearchKeydown(event) { if (event.key === 'Enter') this.search(event) },
+            applyFilter(field, event) { this.state.filters[field] = event.target.value; this.update(); this.loadStudents(1) },
+            search(event) { event.preventDefault(); this.loadStudents(1) },
+            resetFilters(event) {
+                event.preventDefault()
+                this.update({filters: {query: '', academicYearID: '', classLabel: ''}})
+                this.loadStudents(1)
+            },
+            loadStudents(page) {
+                this.update({loading: true, editingID: '', page})
+                axios.get('/api/v1/students', {params: {...this.state.filters, page, pageSize: this.state.pageSize}})
+                    .then(response => this.update({students: response.data.items || [], page: response.data.page, total: response.data.total || 0}))
+                    .catch(error => this.fail(error, 'Daftar siswa tidak dapat dimuat'))
+                    .finally(() => this.update({loading: false}))
+            },
+            startEdit(item) { this.update({editingID: item.id, editingName: item.name, message: ''}) },
+            cancelEdit(event) { if (event) event.preventDefault(); this.update({editingID: '', editingName: ''}) },
+            onEditKeydown(item, event) {
+                if (event.key === 'Enter') this.saveName(item)
+                if (event.key === 'Escape') this.cancelEdit(event)
+            },
+            saveName(item, event) {
+                if (event) event.preventDefault()
+                const name = this.state.editingName.trim()
+                if (!name) { this.update({message: 'Nama siswa wajib diisi', success: false}); return }
+                this.update({saving: true, message: ''})
+                axios.patch(`/api/v1/admin/students/${item.id}`, {name}).then(() => {
+                    this.update({editingID: '', editingName: '', message: 'Nama siswa berhasil diperbarui', success: true})
+                    this.loadStudents(this.state.page)
+                }).catch(error => this.fail(error, 'Nama siswa tidak berhasil diperbarui')).finally(() => this.update({saving: false}))
+            },
+            changePage(page, event) { if (event) event.preventDefault(); this.loadStudents(page) },
+            totalPages() { return Math.max(1, Math.ceil(this.state.total / this.state.pageSize)) },
+            pageStart() { return (this.state.page - 1) * this.state.pageSize + 1 },
+            pageEnd() { return Math.min(this.state.total, this.state.page * this.state.pageSize) },
+            clearMessage() { this.update({message: ''}) },
+            fail(error, fallback) {
+                const message = error.response && error.response.data && error.response.data.message
+                this.update({message: message || fallback, success: false})
+            },
+        }
+    </script>
+</students>

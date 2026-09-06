@@ -47,3 +47,32 @@ type Aggregate struct {
 	AttendanceDate      time.Time
 	AttendanceTypeID    string
 }
+
+type ManagementAssignment struct {
+	StudentClassID    string `json:"studentClassID"`
+	AcademicYearID    string `json:"academicYearID"`
+	AcademicYearLabel string `json:"academicYearLabel"`
+	ClassLabel        string `json:"classLabel"`
+}
+
+type ManagementStudent struct {
+	ID            string                 `json:"id"`
+	AlternativeID string                 `json:"alternativeID"`
+	Name          string                 `json:"name"`
+	Assignments   []ManagementAssignment `json:"assignments" gorm:"-"`
+}
+
+type ManagementStudentPage struct {
+	Items    []*ManagementStudent `json:"items"`
+	Page     int                  `json:"page"`
+	PageSize int                  `json:"pageSize"`
+	Total    int64                `json:"total"`
+}
+
+type StudentListOptions struct {
+	Query          string
+	AcademicYearID string
+	ClassLabel     string
+	Page           int
+	PageSize       int
+}

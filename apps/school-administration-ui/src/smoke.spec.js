@@ -92,4 +92,32 @@ describe('administration UI test environment', () => {
         expect(administration).to.include("axios.put(`/api/v1/admin/teachers/${this.state.selectedTeacher.id}/access`")
         expect(schools).to.include("axios.post('/api/v1/platform/schools'")
     })
+
+    it('exposes student management to administrators and teachers with role-specific actions', () => {
+        const appContent = fs.readFileSync(
+            path.join(__dirname, 'components/global/app-content/app-content.riot'),
+            'utf8',
+        )
+        const asideMenu = fs.readFileSync(
+            path.join(__dirname, 'components/includes/aside-menu/aside-menu.riot'),
+            'utf8',
+        )
+        const students = fs.readFileSync(
+            path.join(__dirname, 'components/includes/pages/students/students.riot'),
+            'utf8',
+        )
+        const attendanceCreate = fs.readFileSync(
+            path.join(__dirname, 'components/includes/pages/absensi/absensi-input-form/absensi-input-form.riot'),
+            'utf8',
+        )
+
+        expect(appContent).to.include('path="/#students"')
+        expect(asideMenu).to.include('"label": "Siswa"')
+        expect(asideMenu).to.include('"roles": ["school_admin", "teacher"]')
+        expect(students).to.include("isAdmin() { return this.state.role === 'school_admin' }")
+        expect(students).to.include("axios.get('/api/v1/students'")
+        expect(students).to.include("axios.post('/api/v1/students'")
+        expect(students).to.include('axios.patch(`/api/v1/admin/students/${item.id}`')
+        expect(attendanceCreate).to.include("url: '/api/v1/students'")
+    })
 })

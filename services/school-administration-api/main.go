@@ -85,7 +85,10 @@ func main() {
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		handler.ResponseJson(w, map[string]string{"status": "ok"}, http.StatusOK)
 	}).Methods(http.MethodGet)
-	r.Handle("/api/v1/student/attendance/register", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.RegisterStudent))).Methods("POST")
+	r.Handle("/api/v1/student/attendance/register", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.RegisterStudent)))).Methods("POST")
+	r.Handle("/api/v1/students", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.ListStudents)))).Methods("GET")
+	r.Handle("/api/v1/students", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.CreateStudent)))).Methods("POST")
+	r.Handle("/api/v1/admin/students/{id}", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.UpdateStudentName)))).Methods("PATCH")
 	r.Handle("/api/v1/student/attendance/submit", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.SubmitAttendance))).Methods("POST")
 	r.Handle("/api/v1/student/attendance/list", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.Students))).Methods("GET")
 	r.Handle("/api/v1/academic-years", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.ListAcademicYear))).Methods("GET")

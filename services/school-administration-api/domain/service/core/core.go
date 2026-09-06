@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kennykarnama/school-adminstration-api/domain/entity/user"
 	"sort"
+	"strings"
 	"time"
 
 	attendanceTypeEntity "github.com/kennykarnama/school-adminstration-api/domain/entity/attendancetype"
@@ -16,6 +17,8 @@ import (
 
 type Service interface {
 	RegisterStudent(ctx context.Context, student *student.Student, class *student.StudentClass) error
+	ListStudents(ctx context.Context, options student.StudentListOptions) (*student.ManagementStudentPage, error)
+	UpdateStudentName(ctx context.Context, studentID, name string) error
 	SubmitAttendance(ctx context.Context, data []*student.StudentAttendance) error
 	ListAttendance(ctx context.Context, academicYearID string, classLabel string, attendanceDate string) ([]*student.Aggregate, error)
 	DeactivateStudentClass(ctx context.Context, studentClassID string, reason string) error
@@ -42,6 +45,25 @@ func (s *svc) RegisterStudent(ctx context.Context, student *student.Student, cla
 		return err
 	}
 	return s.repo.RegisterStudent(ctx, student, class, *principal)
+}
+
+func (s *svc) ListStudents(ctx context.Context, options student.StudentListOptions) (*student.ManagementStudentPage, error) {
+	principal, err := user.NewPrincipalFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.ListStudents(ctx, options, *principal)
+}
+
+func (s *svc) UpdateStudentName(ctx context.Context, studentID, name string) error {
+	principal, err := user.NewPrincipalFromCtx(ctx)
+	if err != nil {
+		return err
+	}
+	if principal.Role != user.RoleSchoolAdmin {
+		return user.ErrForbidden
+	}
+	return s.repo.UpdateStudentName(ctx, studentID, strings.TrimSpace(name), *principal)
 }
 
 func (s *svc) SubmitAttendance(ctx context.Context, data []*student.StudentAttendance) error {

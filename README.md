@@ -57,6 +57,8 @@ alternativeID,name,academicYearLabel,classLabel
 
 Leave `alternativeID` empty to generate a unique `STU-…` value during preview. Use **Validasi & Pratinjau** before applying. Imports accept up to 5,000 student rows, upsert matching records, and never delete records omitted from the form or imported file. A student is matched by alternative ID, and each student may have one active class assignment per academic year. Student names are not treated as unique. The Go API generates the workbook at `GET /api/v1/setup/students/template` and parses multipart Excel/CSV uploads at `POST /api/v1/setup/students/import`; the authenticated preview/apply endpoints then validate and persist the returned rows.
 
+Open **Siswa** to search and filter active student placements. School administrators can add students and correct their names there; teachers can view students only in their assigned academic-year/class combinations. Alternative IDs remain read-only after creation. The attendance screen retains its quick-add student flow.
+
 Run the complete development stack:
 
 ```sh

@@ -24,6 +24,9 @@
     <route path="/#administration">
         <administration></administration>
     </route>
+    <route path="/#students">
+        <students></students>
+    </route>
     <route path="/#platform/schools">
         <platform-schools></platform-schools>
     </route>
@@ -47,6 +50,7 @@
         import RekapKlasikal from '../../includes/pages/absensi/rekap/rekap-klasikal.riot';
         import Setup from '../../includes/pages/setup/setup.riot';
         import Administration from '../../includes/pages/administration/administration.riot';
+        import Students from '../../includes/pages/students/students.riot';
         import PlatformSchools from '../../includes/pages/platform/platform-schools.riot';
         import ChangePassword from '../../includes/pages/password/change-password.riot';
         import lazy from "@riotjs/lazy";
@@ -61,6 +65,7 @@
                 RekapKlasikal,
                 Setup,
                 Administration,
+                Students,
                 PlatformSchools,
                 ChangePassword,
                 login: lazy(() => import('../../includes/pages/login/login.riot')),

@@ -9,6 +9,10 @@ type RegisterStudentRequest struct {
 	ClassLabel     string `json:"classLabel" validate:"required"`
 }
 
+type UpdateStudentNameRequest struct {
+	Name string `json:"name"`
+}
+
 type AttendanceItem struct {
 	StudentClassID   string `json:"studentClassID" validate:"required"`
 	Attend           bool   `json:"attend" validate:"required"`

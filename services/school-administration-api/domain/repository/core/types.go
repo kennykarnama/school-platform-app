@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgconn"
@@ -15,6 +16,8 @@ import (
 
 type Repository interface {
 	RegisterStudent(ctx context.Context, student *entityStudent.Student, studentClass *entityStudent.StudentClass, principal user.Principal) error
+	ListStudents(ctx context.Context, options entityStudent.StudentListOptions, principal user.Principal) (*entityStudent.ManagementStudentPage, error)
+	UpdateStudentName(ctx context.Context, studentID, name string, principal user.Principal) error
 	SubmitAttendance(ctx context.Context, data []*student.StudentAttendance, principal user.Principal) error
 	ListAttendance(ctx context.Context, academicYearID string, classLabel string, attendanceDate string, principal user.Principal) ([]*entityStudent.Aggregate, error)
 	DeactivateStudentClass(ctx context.Context, studentClassID string, reason string, principal user.Principal) error
@@ -61,6 +64,94 @@ func (r *sqlRepository) RegisterStudent(ctx context.Context, student *entityStud
 		return entityStudent.ErrAlternativeIDAlreadyExists
 	}
 	return err
+}
+
+func (r *sqlRepository) ListStudents(ctx context.Context, options entityStudent.StudentListOptions, principal user.Principal) (*entityStudent.ManagementStudentPage, error) {
+	db := r.db.WithContext(ctx)
+	query := db.Table("student").Where("student.school_id = ? AND student.deleted_at IS NULL", principal.SchoolID)
+	assignmentFilter := "EXISTS (SELECT 1 FROM student_class sc WHERE sc.student_id = student.id AND sc.school_id = student.school_id AND sc.deleted_at IS NULL AND EXISTS (SELECT 1 FROM academic_year ay WHERE ay.id = sc.academic_year_id AND ay.school_id = sc.school_id AND ay.deleted_at IS NULL) AND EXISTS (SELECT 1 FROM school_class active_class WHERE active_class.school_id = sc.school_id AND active_class.label = sc.class_label AND active_class.active = true)"
+	args := []interface{}{}
+	if options.AcademicYearID != "" {
+		assignmentFilter += " AND sc.academic_year_id = ?"
+		args = append(args, options.AcademicYearID)
+	}
+	if options.ClassLabel != "" {
+		assignmentFilter += " AND sc.class_label = ?"
+		args = append(args, options.ClassLabel)
+	}
+	if principal.Role == user.RoleTeacher {
+		assignmentFilter += " AND EXISTS (SELECT 1 FROM teacher_class_access access WHERE access.school_id = sc.school_id AND access.academic_year_id = sc.academic_year_id AND access.class_label = sc.class_label AND access.teacher_id = ?)"
+		args = append(args, principal.UserID)
+	}
+	assignmentFilter += ")"
+	if options.AcademicYearID != "" || options.ClassLabel != "" || principal.Role == user.RoleTeacher {
+		query = query.Where(assignmentFilter, args...)
+	}
+	if options.Query != "" {
+		pattern := "%" + strings.ToLower(options.Query) + "%"
+		query = query.Where("lower(student.name) LIKE ? OR lower(student.alternative_id) LIKE ?", pattern, pattern)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+	items := []*entityStudent.ManagementStudent{}
+	if err := query.Select("student.id, student.alternative_id, student.name").Order("lower(student.name), student.id").Offset((options.Page - 1) * options.PageSize).Limit(options.PageSize).Find(&items).Error; err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return &entityStudent.ManagementStudentPage{Items: items, Page: options.Page, PageSize: options.PageSize, Total: total}, nil
+	}
+
+	ids := make([]string, 0, len(items))
+	byID := make(map[string]*entityStudent.ManagementStudent, len(items))
+	for _, item := range items {
+		item.Assignments = []entityStudent.ManagementAssignment{}
+		ids = append(ids, item.ID)
+		byID[item.ID] = item
+	}
+	type assignmentRow struct {
+		StudentID         string
+		StudentClassID    string
+		AcademicYearID    string
+		AcademicYearLabel string
+		ClassLabel        string
+	}
+	rows := []assignmentRow{}
+	assignments := db.Table("student_class sc").Select("sc.student_id, sc.id AS student_class_id, sc.academic_year_id, academic_year.label AS academic_year_label, sc.class_label").
+		Joins("JOIN academic_year ON academic_year.id = sc.academic_year_id AND academic_year.school_id = sc.school_id AND academic_year.deleted_at IS NULL").
+		Joins("JOIN school_class ON school_class.school_id = sc.school_id AND school_class.label = sc.class_label AND school_class.active = true").
+		Where("sc.school_id = ? AND sc.student_id IN ? AND sc.deleted_at IS NULL", principal.SchoolID, ids)
+	if options.AcademicYearID != "" {
+		assignments = assignments.Where("sc.academic_year_id = ?", options.AcademicYearID)
+	}
+	if options.ClassLabel != "" {
+		assignments = assignments.Where("sc.class_label = ?", options.ClassLabel)
+	}
+	if principal.Role == user.RoleTeacher {
+		assignments = assignments.Where("EXISTS (SELECT 1 FROM teacher_class_access access WHERE access.school_id = sc.school_id AND access.academic_year_id = sc.academic_year_id AND access.class_label = sc.class_label AND access.teacher_id = ?)", principal.UserID)
+	}
+	if err := assignments.Order("academic_year.created_at DESC, sc.class_label").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		if item := byID[row.StudentID]; item != nil {
+			item.Assignments = append(item.Assignments, entityStudent.ManagementAssignment{StudentClassID: row.StudentClassID, AcademicYearID: row.AcademicYearID, AcademicYearLabel: row.AcademicYearLabel, ClassLabel: row.ClassLabel})
+		}
+	}
+	return &entityStudent.ManagementStudentPage{Items: items, Page: options.Page, PageSize: options.PageSize, Total: total}, nil
+}
+
+func (r *sqlRepository) UpdateStudentName(ctx context.Context, studentID, name string, principal user.Principal) error {
+	result := r.db.WithContext(ctx).Table("student").Where("id = ? AND school_id = ? AND deleted_at IS NULL", studentID, principal.SchoolID).Update("name", name)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *sqlRepository) SubmitAttendance(ctx context.Context, data []*entityStudent.StudentAttendance, principal user.Principal) error {
