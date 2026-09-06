@@ -17,14 +17,14 @@ type sqlRepository struct{ db *gorm.DB }
 
 func NewSQLRepository(db *gorm.DB) *sqlRepository { return &sqlRepository{db: db} }
 
-func (r *sqlRepository) Preview(ctx context.Context, req setupSvc.Request, teacherID string) (*setupSvc.Preview, error) {
-	return buildPreview(r.db.WithContext(ctx), req, teacherID)
+func (r *sqlRepository) Preview(ctx context.Context, req setupSvc.Request, schoolID string) (*setupSvc.Preview, error) {
+	return buildPreview(r.db.WithContext(ctx), req, schoolID)
 }
 
-func (r *sqlRepository) Apply(ctx context.Context, req setupSvc.Request, teacherID string) (*setupSvc.Preview, error) {
+func (r *sqlRepository) Apply(ctx context.Context, req setupSvc.Request, schoolID string) (*setupSvc.Preview, error) {
 	var result *setupSvc.Preview
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		preview, err := buildPreview(tx, req, teacherID)
+		preview, err := buildPreview(tx, req, schoolID)
 		if err != nil {
 			return err
 		}
@@ -33,7 +33,7 @@ func (r *sqlRepository) Apply(ctx context.Context, req setupSvc.Request, teacher
 			return nil
 		}
 
-		years, types, students, classes, err := loadState(tx)
+		years, types, students, classes, err := loadState(tx, schoolID)
 		if err != nil {
 			return err
 		}
@@ -44,7 +44,7 @@ func (r *sqlRepository) Apply(ctx context.Context, req setupSvc.Request, teacher
 		for _, input := range req.AcademicYears {
 			key := fold(input.Label)
 			if len(yearByKey[key]) == 0 {
-				value := &academicyear.AcademicYear{ID: uuid.NewV4().String(), Label: input.Label}
+				value := &academicyear.AcademicYear{ID: uuid.NewV4().String(), SchoolID: schoolID, Label: input.Label}
 				if err := tx.Create(value).Error; err != nil {
 					return err
 				}
@@ -56,7 +56,7 @@ func (r *sqlRepository) Apply(ctx context.Context, req setupSvc.Request, teacher
 			matches := typeByKey[key]
 			if len(matches) == 0 {
 				color := input.Color
-				value := &attendancetype.AttendanceType{ID: uuid.NewV4().String(), Label: input.Label}
+				value := &attendancetype.AttendanceType{ID: uuid.NewV4().String(), SchoolID: schoolID, Label: input.Label}
 				if color != "" {
 					value.Color = &color
 				}
@@ -81,7 +81,7 @@ func (r *sqlRepository) Apply(ctx context.Context, req setupSvc.Request, teacher
 			studentKey := fold(input.AlternativeID)
 			var value *student.Student
 			if len(studentByKey[studentKey]) == 0 {
-				value = &student.Student{ID: uuid.NewV4().String(), AlternativeID: input.AlternativeID, Name: input.Name}
+				value = &student.Student{ID: uuid.NewV4().String(), SchoolID: schoolID, AlternativeID: input.AlternativeID, Name: input.Name, Active: true}
 				if err := tx.Create(value).Error; err != nil {
 					return err
 				}
@@ -99,7 +99,7 @@ func (r *sqlRepository) Apply(ctx context.Context, req setupSvc.Request, teacher
 			key := value.ID + "|" + year.ID
 			matches := classByKey[key]
 			if len(matches) == 0 {
-				assignment := &student.StudentClass{ID: uuid.NewV4().String(), StudentID: value.ID, AcademicYearID: year.ID, ClassLabel: input.ClassLabel, UserID: teacherID}
+				assignment := &student.StudentClass{ID: uuid.NewV4().String(), SchoolID: schoolID, StudentID: value.ID, AcademicYearID: year.ID, ClassLabel: input.ClassLabel}
 				if err := tx.Create(assignment).Error; err != nil {
 					return err
 				}
@@ -116,8 +116,8 @@ func (r *sqlRepository) Apply(ctx context.Context, req setupSvc.Request, teacher
 	return result, err
 }
 
-func buildPreview(db *gorm.DB, req setupSvc.Request, teacherID string) (*setupSvc.Preview, error) {
-	years, types, students, classes, err := loadState(db)
+func buildPreview(db *gorm.DB, req setupSvc.Request, schoolID string) (*setupSvc.Preview, error) {
+	years, types, students, classes, err := loadState(db, schoolID)
 	if err != nil {
 		return nil, err
 	}
@@ -186,8 +186,6 @@ func buildPreview(db *gorm.DB, req setupSvc.Request, teacherID string) (*setupSv
 			assignments := classByKey[value.ID+"|"+yearMatches[0].ID]
 			if len(assignments) > 1 {
 				item.Errors = append(item.Errors, "Penempatan siswa ambigu karena lebih dari satu data aktif")
-			} else if len(assignments) == 1 && assignments[0].UserID != teacherID {
-				item.Errors = append(item.Errors, "Penempatan siswa dimiliki guru lain")
 			} else if value.Name != input.Name || len(assignments) == 0 || assignments[0].ClassLabel != input.ClassLabel {
 				item.Action = setupSvc.ActionUpdate
 			} else {
@@ -215,21 +213,21 @@ func add(result *setupSvc.Preview, item setupSvc.ItemResult) {
 	result.Items = append(result.Items, item)
 }
 
-func loadState(db *gorm.DB) ([]*academicyear.AcademicYear, []*attendancetype.AttendanceType, []*student.Student, []*student.StudentClass, error) {
+func loadState(db *gorm.DB, schoolID string) ([]*academicyear.AcademicYear, []*attendancetype.AttendanceType, []*student.Student, []*student.StudentClass, error) {
 	var years []*academicyear.AcademicYear
 	var types []*attendancetype.AttendanceType
 	var students []*student.Student
 	var classes []*student.StudentClass
-	if err := db.Find(&years).Error; err != nil {
+	if err := db.Where("school_id = ?", schoolID).Find(&years).Error; err != nil {
 		return nil, nil, nil, nil, err
 	}
-	if err := db.Find(&types).Error; err != nil {
+	if err := db.Where("school_id = ?", schoolID).Find(&types).Error; err != nil {
 		return nil, nil, nil, nil, err
 	}
-	if err := db.Find(&students).Error; err != nil {
+	if err := db.Where("school_id = ?", schoolID).Find(&students).Error; err != nil {
 		return nil, nil, nil, nil, err
 	}
-	if err := db.Find(&classes).Error; err != nil {
+	if err := db.Where("school_id = ?", schoolID).Find(&classes).Error; err != nil {
 		return nil, nil, nil, nil, err
 	}
 	return years, types, students, classes, nil

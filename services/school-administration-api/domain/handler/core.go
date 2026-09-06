@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,6 +37,14 @@ func NewHandler(coreSvc core.Service, academicYearSvc academicSvc.Service, class
 }
 
 func (h *Handler) RegisterStudent(w http.ResponseWriter, r *http.Request) {
+	h.createStudent(w, r, false)
+}
+
+func (h *Handler) CreateStudent(w http.ResponseWriter, r *http.Request) {
+	h.createStudent(w, r, true)
+}
+
+func (h *Handler) createStudent(w http.ResponseWriter, r *http.Request, includeStudent bool) {
 	var req RegisterStudentRequest
 
 	err := util.DecodeToStruct(r.Body, &req)
@@ -44,6 +54,10 @@ func (h *Handler) RegisterStudent(w http.ResponseWriter, r *http.Request) {
 		}, ErrorToHTTPStatus(err))
 		return
 	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.AlternativeID = strings.ToUpper(strings.TrimSpace(req.AlternativeID))
+	req.AcademicYearID = strings.TrimSpace(req.AcademicYearID)
+	req.ClassLabel = strings.ToUpper(strings.TrimSpace(req.ClassLabel))
 
 	if err := h.validate.Struct(&req); err != nil {
 		ResponseJson(w, ErrorResponse{
@@ -53,7 +67,7 @@ func (h *Handler) RegisterStudent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ts := time.Now().UTC()
-	alternativeID := strings.ToUpper(strings.TrimSpace(req.AlternativeID))
+	alternativeID := req.AlternativeID
 	if alternativeID == "" {
 		alternativeID, err = util.GenerateStudentAlternativeID()
 		if err != nil {
@@ -65,6 +79,7 @@ func (h *Handler) RegisterStudent(w http.ResponseWriter, r *http.Request) {
 	newStudent := &student.Student{
 		Name:          req.Name,
 		AlternativeID: alternativeID,
+		Active:        true,
 		CreatedAt:     ts,
 	}
 	newStudentClass := &student.StudentClass{
@@ -82,9 +97,67 @@ func (h *Handler) RegisterStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if includeStudent {
+		ResponseJson(w, map[string]interface{}{
+			"id": newStudent.ID, "alternativeID": newStudent.AlternativeID, "name": newStudent.Name,
+			"assignments": []student.ManagementAssignment{{StudentClassID: newStudentClass.ID, AcademicYearID: newStudentClass.AcademicYearID, ClassLabel: newStudentClass.ClassLabel}},
+		}, http.StatusCreated)
+		return
+	}
 	ResponseJson(w, Empty{}, http.StatusCreated)
+}
 
-	return
+func (h *Handler) ListStudents(w http.ResponseWriter, r *http.Request) {
+	values := r.URL.Query()
+	page, err := positiveQueryInt(values.Get("page"), 1)
+	if err != nil {
+		ResponseJson(w, ErrorResponse{Message: "page harus berupa bilangan positif"}, http.StatusBadRequest)
+		return
+	}
+	pageSize, err := positiveQueryInt(values.Get("pageSize"), 50)
+	if err != nil || pageSize > 100 {
+		ResponseJson(w, ErrorResponse{Message: "pageSize harus antara 1 dan 100"}, http.StatusBadRequest)
+		return
+	}
+	result, err := h.coreSvc.ListStudents(r.Context(), student.StudentListOptions{
+		Query: strings.TrimSpace(values.Get("query")), AcademicYearID: strings.TrimSpace(values.Get("academicYearID")),
+		ClassLabel: strings.ToUpper(strings.TrimSpace(values.Get("classLabel"))), Status: strings.TrimSpace(values.Get("status")),
+		Page: page, PageSize: pageSize,
+	})
+	if err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	ResponseJson(w, result, http.StatusOK)
+}
+
+func (h *Handler) UpdateStudentName(w http.ResponseWriter, r *http.Request) {
+	var req UpdateStudentNameRequest
+	if err := util.DecodeToStruct(r.Body, &req); err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		ResponseJson(w, ErrorResponse{Message: "Nama siswa wajib diisi"}, http.StatusBadRequest)
+		return
+	}
+	if err := h.coreSvc.UpdateStudentName(r.Context(), mux.Vars(r)["id"], req.Name); err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func positiveQueryInt(value string, defaultValue int) (int, error) {
+	if value == "" {
+		return defaultValue, nil
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 1 {
+		return 0, strconv.ErrSyntax
+	}
+	return parsed, nil
 }
 
 func (h *Handler) SubmitAttendance(w http.ResponseWriter, r *http.Request) {
@@ -286,6 +359,10 @@ func (h *Handler) DeactivateStudentClass(w http.ResponseWriter, r *http.Request)
 		}, ErrorToHTTPStatus(err))
 		return
 	}
+	if strings.TrimSpace(req.Reason) == "" {
+		ResponseJson(w, ErrorResponse{Message: "Alasan penonaktifan wajib diisi"}, http.StatusBadRequest)
+		return
+	}
 
 	err = h.coreSvc.DeactivateStudentClass(r.Context(), id, req.Reason)
 	if err != nil {
@@ -295,7 +372,45 @@ func (h *Handler) DeactivateStudentClass(w http.ResponseWriter, r *http.Request)
 		}, ErrorToHTTPStatus(err))
 		return
 	}
-	return
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) SetStudentActive(w http.ResponseWriter, r *http.Request) {
+	var req SetStudentActiveRequest
+	if err := util.DecodeToStruct(r.Body, &req); err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	if !req.Active && strings.TrimSpace(req.Reason) == "" {
+		ResponseJson(w, ErrorResponse{Message: "Alasan penonaktifan wajib diisi"}, http.StatusBadRequest)
+		return
+	}
+	if err := h.coreSvc.SetStudentActive(r.Context(), mux.Vars(r)["id"], req.Active, req.Reason); err != nil {
+		if errors.Is(err, student.ErrActivePlacementAlreadyExists) {
+			ResponseJson(w, ErrorResponse{Message: "Siswa sudah memiliki penempatan aktif untuk tahun ajaran ini"}, http.StatusConflict)
+			return
+		}
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) RestoreStudentClass(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		ResponseJson(w, ErrorResponse{Message: "studentClassID is required"}, http.StatusBadRequest)
+		return
+	}
+	if err := h.coreSvc.RestoreStudentClass(r.Context(), id); err != nil {
+		if errors.Is(err, student.ErrActivePlacementAlreadyExists) {
+			ResponseJson(w, ErrorResponse{Message: "Siswa sudah memiliki penempatan aktif untuk tahun ajaran ini"}, http.StatusConflict)
+			return
+		}
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
@@ -429,4 +544,26 @@ func (h *Handler) TransferStudentClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ResponseJson(w, struct{}{}, http.StatusCreated)
+}
+
+func (h *Handler) TransferStudents(w http.ResponseWriter, r *http.Request) {
+	var req TransferStudentsRequest
+	if err := util.DecodeToStruct(r.Body, &req); err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	if err := h.validate.Struct(&req); err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	count, err := h.coreSvc.TransferStudents(r.Context(), req.StudentClassIDs, req.DestinationAcademicYearID, req.DestinationClassLabel)
+	if err != nil {
+		if errors.Is(err, student.ErrActivePlacementAlreadyExists) {
+			ResponseJson(w, ErrorResponse{Message: "Siswa sudah memiliki penempatan aktif untuk tahun ajaran tujuan"}, http.StatusConflict)
+			return
+		}
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	ResponseJson(w, map[string]interface{}{"transferred": count}, http.StatusOK)
 }

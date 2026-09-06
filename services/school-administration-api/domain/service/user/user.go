@@ -15,6 +15,7 @@ type Service interface {
 	Validate(ctx context.Context, token string) (*user2.UserSession, error)
 	Profile(ctx context.Context, userID string) (*user2.Teacher, error)
 	Logout(ctx context.Context, token string) error
+	ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error
 	RegisterTeachers(ctx context.Context, teachers []*user2.Teacher) error
 }
 
@@ -34,6 +35,12 @@ func (s *service) Login(ctx context.Context, alternativeId, password string) (*u
 	userData, err := s.repo.GetUserByAlternativeId(ctx, alternativeId)
 	if err != nil {
 		return nil, err
+	}
+	if !userData.Active {
+		return nil, user2.ErrAccountInactive
+	}
+	if userData.SchoolID != nil && !userData.SchoolActive {
+		return nil, user2.ErrAccountInactive
 	}
 	if !util.PasswordMatch(password, userData.Password) {
 		return nil, user2.ErrInvalidCredentials
@@ -74,9 +81,28 @@ func (s *service) Logout(ctx context.Context, token string) error {
 	return s.repo.DeleteUserSessionByToken(ctx, token)
 }
 
+func (s *service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	value, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !util.PasswordMatch(currentPassword, value.Password) {
+		return user2.ErrInvalidCredentials
+	}
+	hash, err := util.DefaultEncryptPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	return s.repo.UpdatePassword(ctx, userID, hash, false)
+}
+
 func (s *service) RegisterTeachers(ctx context.Context, teachers []*user2.Teacher) error {
 	for _, t := range teachers {
-		t.Password, _ = util.DefaultEncryptPassword(t.Password)
+		hash, err := util.DefaultEncryptPassword(t.Password)
+		if err != nil {
+			return err
+		}
+		t.Password = hash
 	}
 	return s.repo.SaveTeachers(ctx, teachers)
 }

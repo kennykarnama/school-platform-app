@@ -9,6 +9,10 @@ type RegisterStudentRequest struct {
 	ClassLabel     string `json:"classLabel" validate:"required"`
 }
 
+type UpdateStudentNameRequest struct {
+	Name string `json:"name"`
+}
+
 type AttendanceItem struct {
 	StudentClassID   string `json:"studentClassID" validate:"required"`
 	Attend           bool   `json:"attend" validate:"required"`
@@ -67,6 +71,11 @@ type DeactivateStudentClassRequest struct {
 	Reason string `json:"reason"`
 }
 
+type SetStudentActiveRequest struct {
+	Active bool   `json:"active"`
+	Reason string `json:"reason"`
+}
+
 type StatsAttendanceItem struct {
 	Name            string                 `json:"name"`
 	AttendanceStats []*AttendanceStatsItem `json:"statItems"`
@@ -104,9 +113,23 @@ type LoginResponse struct {
 }
 
 type TeacherProfileResponse struct {
-	ID            string `json:"id"`
-	AlternativeID string `json:"alternativeId"`
-	Name          string `json:"name"`
+	ID                 string                 `json:"id"`
+	AlternativeID      string                 `json:"alternativeId"`
+	Name               string                 `json:"name"`
+	Role               string                 `json:"role"`
+	MustChangePassword bool                   `json:"mustChangePassword"`
+	School             *SchoolSummaryResponse `json:"school,omitempty"`
+}
+
+type SchoolSummaryResponse struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Code string `json:"code"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" validate:"required"`
+	NewPassword     string `json:"newPassword" validate:"required,min=10"`
 }
 
 type TransferStudentClassRequest struct {
@@ -114,4 +137,10 @@ type TransferStudentClassRequest struct {
 	SourceClassLabel          string `json:"sourceClassLabel" validate:"required"`
 	DestinationAcademicYearId string `json:"destinationAcademicYearId" validate:"required"`
 	DestinationClassLabel     string `json:"destinationClassLabel" validate:"required"`
+}
+
+type TransferStudentsRequest struct {
+	StudentClassIDs           []string `json:"studentClassIDs" validate:"required,min=1"`
+	DestinationAcademicYearID string   `json:"destinationAcademicYearId" validate:"required"`
+	DestinationClassLabel     string   `json:"destinationClassLabel" validate:"required"`
 }

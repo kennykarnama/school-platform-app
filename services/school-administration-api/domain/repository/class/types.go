@@ -2,59 +2,24 @@ package class
 
 import (
 	"context"
-	"fmt"
-
 	classEntity "github.com/kennykarnama/school-adminstration-api/domain/entity/class"
+	"github.com/kennykarnama/school-adminstration-api/domain/entity/user"
+	"gorm.io/gorm"
 )
 
 type Repository interface {
-	List(ctx context.Context) ([]*classEntity.Class, error)
+	List(ctx context.Context, principal user.Principal) ([]*classEntity.Class, error)
 }
 
-type enumRepository struct{}
+type sqlRepository struct{ db *gorm.DB }
 
-func NewEnumRepository() *enumRepository {
-	return &enumRepository{}
-}
+func NewSQLRepository(db *gorm.DB) *sqlRepository { return &sqlRepository{db: db} }
 
-func (r *enumRepository) List(ctx context.Context) ([]*classEntity.Class, error) {
-	data := []*classEntity.Class{
-		{
-			ID:    "KELAS I",
-			Label: "KELAS I",
-		},
-		{
-			ID:    "KELAS II",
-			Label: "KELAS II",
-		},
-		{
-			ID:    "KELAS III",
-			Label: "KELAS III",
-		},
-		{
-			ID:    "KELAS IV",
-			Label: "KELAS IV",
-		},
-		{
-			ID:    "KELAS V",
-			Label: "KELAS V",
-		},
-		{
-			ID:    "KELAS VI",
-			Label: "KELAS VI",
-		},
-	}
-	classCategories := []string{
-		"A", "B", "C",
-	}
+func (r *sqlRepository) List(ctx context.Context, principal user.Principal) ([]*classEntity.Class, error) {
 	var results []*classEntity.Class
-	for _, item := range data {
-		for _, ct := range classCategories {
-			results = append(results, &classEntity.Class{
-				ID:    fmt.Sprintf("%s %s", item.ID, ct),
-				Label: fmt.Sprintf("%s %s", item.ID, ct),
-			})
-		}
+	query := r.db.WithContext(ctx).Where("school_id = ? AND active = true", principal.SchoolID)
+	if principal.Role == user.RoleTeacher {
+		query = query.Where("EXISTS (SELECT 1 FROM teacher_class_access access WHERE access.school_id = school_class.school_id AND access.class_label = school_class.label AND access.teacher_id = ?)", principal.UserID)
 	}
-	return results, nil
+	return results, query.Order("label ASC").Find(&results).Error
 }

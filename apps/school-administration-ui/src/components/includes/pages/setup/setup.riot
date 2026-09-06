@@ -71,43 +71,6 @@
             </div>
         </section>
 
-        <section>
-            <div class="section-title">
-                <div>
-                    <h4>Siswa dan Kelas</h4>
-                    <small class="text-gray">Maksimal 5.000 baris per proses.</small>
-                </div>
-                <div>
-                    <button class="btn btn-sm" onclick={downloadExcelTemplate}>Unduh Template Excel</button>
-                    <label class="btn btn-sm btn-primary file-button">
-                        Impor Excel/CSV
-                        <input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" onchange={importFile}>
-                    </label>
-                    <button class="btn btn-sm" onclick={addStudent}>Tambah</button>
-                </div>
-            </div>
-            <div class="table-scroll">
-                <table class="table table-striped">
-                    <thead><tr><th>ID Alternatif</th><th>Nama</th><th>Tahun Ajaran</th><th>Kelas</th><th></th></tr></thead>
-                    <tbody>
-                        <tr each={(item, index) in state.students}>
-                            <td><input class="form-input" value={item.alternativeID} placeholder="Kosong = dibuat otomatis" oninput={(event) => editStudent(index, 'alternativeID', event)}></td>
-                            <td><input class="form-input" value={item.name} oninput={(event) => editStudent(index, 'name', event)}></td>
-                            <td><input class="form-input" value={item.academicYearLabel} list="setup-years" oninput={(event) => editStudent(index, 'academicYearLabel', event)}></td>
-                            <td>
-                                <select class="form-select" onchange={(event) => editStudent(index, 'classLabel', event)}>
-                                    <option value="">Pilih kelas</option>
-                                    <option each={classItem in state.classes} value={classItem.label} selected={classItem.label === item.classLabel}>{classItem.label}</option>
-                                </select>
-                            </td>
-                            <td><button class="btn btn-error btn-sm" onclick={() => removeStudent(index)}>Keluarkan</button></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <datalist id="setup-years"><option each={item in state.academicYears} value={item.label}></option></datalist>
-            </div>
-        </section>
-
         <div class="action-bar">
             <button class="btn btn-primary loading-{state.loading}" disabled={state.loading} onclick={preview}>Validasi & Pratinjau</button>
             <button class="btn btn-success" disabled={!state.preview || !state.preview.valid || state.loading} onclick={apply}>Terapkan Data</button>
@@ -119,7 +82,7 @@
                 {state.preview.valid ? 'Data valid dan siap diterapkan.' : 'Perbaiki kesalahan sebelum menerapkan data.'}
                 Buat: {state.preview.summary.create}, ubah: {state.preview.summary.update}, tetap: {state.preview.summary.unchanged}.
             </div>
-            <div class="table-scroll">
+            <div class="table-scroll" tabindex="0" role="region" aria-label="Data awal">
                 <table class="table table-striped">
                     <thead><tr><th>Jenis</th><th>Baris</th><th>Kunci</th><th>Aksi</th><th>Keterangan</th></tr></thead>
                     <tbody>
@@ -145,22 +108,18 @@
         setup .table-scroll { overflow-x: auto; }
         setup table { min-width: 760px; }
         setup .color-input { height: 2rem; padding: .1rem; }
-        setup .file-button { margin: 0 .35rem; }
-        setup .file-button input { display: none; }
         setup .setup-confirmation-modal { max-width: 30rem; }
         setup .setup-confirmation-modal .modal-body p:last-of-type { margin-bottom: 0; }
         setup .setup-confirmation-modal .toast { margin-top: 1rem; }
     </style>
 
     <script>
-        const blankStudent = () => ({alternativeID: '', name: '', academicYearLabel: '', classLabel: ''})
         const defaultColors = ['#16A34A', '#F59E0B', '#2563EB', '#DC2626', '#7C3AED', '#0891B2']
 
         export default {
             state: {
                 academicYears: [],
                 attendanceTypes: [],
-                students: [blankStudent()],
                 classes: [],
                 preview: null,
                 loading: false,
@@ -192,15 +151,12 @@
             removeAttendanceType(index) { this.state.attendanceTypes.splice(index, 1); this.changed() },
             editAttendanceType(index, event) { this.state.attendanceTypes[index].label = event.target.value; this.changed() },
             editAttendanceColor(index, event) { this.state.attendanceTypes[index].color = event.target.value; this.changed() },
-            addStudent(event) { event.preventDefault(); this.state.students.push(blankStudent()); this.changed() },
-            removeStudent(index) { this.state.students.splice(index, 1); this.changed() },
-            editStudent(index, field, event) { this.state.students[index][field] = event.target.value; this.changed() },
             payload() {
                 const nonEmpty = item => Object.values(item).some(value => String(value || '').trim())
                 return {
                     academicYears: this.state.academicYears.filter(nonEmpty),
                     attendanceTypes: this.state.attendanceTypes.filter(item => String(item.label || '').trim()),
-                    students: this.state.students.filter(nonEmpty),
+                    students: [],
                 }
             },
             preview(event) {
@@ -258,35 +214,6 @@
                         if (error.response && error.response.status === 422) this.update({preview: error.response.data})
                         this.fail(error, 'Data tidak dapat diterapkan')
                     }).finally(() => this.update({loading: false}))
-            },
-            async importFile(event) {
-                const file = event.target.files[0]
-                if (!file) return
-                try {
-                    const form = new FormData()
-                    form.append('file', file)
-                    const response = await axios.post('/api/v1/setup/students/import', form)
-                    const students = response.data.items || []
-                    this.update({students: students.length ? students : [blankStudent()], preview: null, message: `${students.length} baris dimuat dari ${file.name}`, success: true})
-                } catch (error) {
-                    this.fail(error, 'File tidak dapat dibaca')
-                } finally {
-                    event.target.value = ''
-                }
-            },
-            async downloadExcelTemplate(event) {
-                event.preventDefault()
-                try {
-                    const response = await axios.get('/api/v1/setup/students/template', {responseType: 'blob'})
-                    const url = URL.createObjectURL(response.data)
-                    const link = document.createElement('a')
-                    link.href = url
-                    link.download = 'template-data-awal-siswa.xlsx'
-                    link.click()
-                    URL.revokeObjectURL(url)
-                } catch (error) {
-                    this.update({message: error.message || 'Template Excel tidak dapat dibuat', success: false})
-                }
             },
             fail(error, fallback) {
                 const message = error.response && error.response.data && error.response.data.message
