@@ -1,4 +1,36 @@
 <students>
+    <div class="modal {state.dialog.open ? 'active' : ''}"
+         role="dialog"
+         aria-modal="true"
+         aria-hidden={!state.dialog.open}
+         aria-labelledby="students-dialog-title">
+        <a class="modal-overlay" href="#close" role="button" aria-label="Tutup dialog" onclick={closeDialog}></a>
+        <div class="modal-container">
+            <div class="modal-header">
+                <button class="btn btn-clear float-right" aria-label="Tutup" disabled={state.dialog.saving} onclick={closeDialog}></button>
+                <div class="modal-title h5" id="students-dialog-title">{dialogTitle()}</div>
+            </div>
+            <div class="modal-body">
+                <div class="content">
+                    <p>{dialogDescription()}</p>
+                    <div if={state.dialog.needsReason}>
+                        <div class="form-group">
+                            <label class="form-label" for="students-dialog-reason">Alasan</label>
+                            <input id="students-dialog-reason" class="form-input" placeholder="Alasan penonaktifan" value={state.dialog.reason} oninput={event => update({dialog: {...state.dialog, reason: event.target.value}})}>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" disabled={state.dialog.saving} onclick={closeDialog}>Batal</button>
+                <button id="students-dialog-confirm"
+                        class="btn {dialogConfirmClass()} loading-{state.dialog.saving}"
+                        disabled={state.dialog.saving || !dialogConfirmEnabled()}
+                        onclick={confirmDialog}>{dialogConfirmLabel()}</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container students-page">
         <h2>Manajemen Siswa</h2>
         <p class="text-gray">Cari siswa berdasarkan nama atau ID dan lihat penempatan kelas aktif.</p>
@@ -38,6 +70,11 @@
                     <option value="">Semua kelas</option>
                     <option each={item in state.classes} value={item.label}>{item.label}</option>
                 </select>
+                <select class="form-select" aria-label="Filter status siswa" value={state.filters.status} onchange={event => applyFilter('status', event)}>
+                    <option value="active">Aktif</option>
+                    <option value="inactive">Nonaktif</option>
+                    <option value="">Semua status</option>
+                </select>
                 <button class="btn btn-primary" onclick={search}>Cari</button>
                 <button class="btn" onclick={resetFilters}>Reset</button>
             </div>
@@ -50,20 +87,32 @@
             </div>
             <div if={!state.loading && state.students.length > 0} class="table-scroll" tabindex="0" role="region" aria-label="Daftar siswa">
                 <table class="table table-striped">
-                    <thead><tr><th>ID Siswa</th><th>Nama</th><th>Penempatan Aktif</th><th if={isAdmin()}>Aksi</th></tr></thead>
+                    <thead><tr><th>ID Siswa</th><th>Nama</th><th>Status</th><th>Penempatan Aktif</th><th if={isAdmin()}>Aksi</th></tr></thead>
                     <tbody>
-                        <tr each={item in state.students}>
+                        <tr each={item in state.students} class={item.active ? '' : 'student-inactive-row'}>
                             <td><code>{item.alternativeID}</code></td>
                             <td>
                                 <input if={state.editingID === item.id} class="form-input input-sm" aria-label="Edit nama siswa" value={state.editingName} oninput={event => update({editingName: event.target.value})} onkeydown={event => onEditKeydown(item, event)}>
                                 <strong if={state.editingID !== item.id}>{item.name}</strong>
                             </td>
                             <td>
+                                <span class="label {item.active ? 'label-success' : 'label-secondary'}">{item.active ? 'Aktif' : 'Nonaktif'}</span>
+                            </td>
+                            <td>
                                 <span if={!item.assignments || item.assignments.length === 0} class="text-gray">Belum ada penempatan aktif</span>
-                                <span each={assignment in item.assignments} class="chip assignment-chip">{assignment.academicYearLabel} · {assignment.classLabel}</span>
+                                <span each={assignment in item.assignments} class="chip assignment-chip {assignment.active ? '' : 'chip-inactive'}">
+                                    {assignment.academicYearLabel} · {assignment.classLabel}
+                                    <span if={!assignment.active} class="chip-reason" title={assignment.deactivateReason}>(Nonaktif)</span>
+                                    <button if={isAdmin() && assignment.active} class="btn btn-clear btn-xs" aria-label="Nonaktifkan penempatan" onclick={() => openPlacementDialog(assignment, item, false)}></button>
+                                    <button if={isAdmin() && !assignment.active} class="btn btn-xs btn-placement-restore" aria-label="Aktifkan penempatan" onclick={() => openPlacementDialog(assignment, item, true)}>Aktifkan</button>
+                                </span>
                             </td>
                             <td if={isAdmin()}>
-                                <div if={state.editingID !== item.id} class="action-buttons"><button class="btn btn-sm" onclick={() => startEdit(item)}>Ubah Nama</button></div>
+                                <div if={state.editingID !== item.id} class="action-buttons">
+                                    <button class="btn btn-sm" onclick={() => startEdit(item)}>Ubah Nama</button>
+                                    <button if={item.active} class="btn btn-sm btn-error" onclick={() => openStudentDialog(item, false)}>Nonaktifkan</button>
+                                    <button if={!item.active} class="btn btn-sm btn-success" onclick={() => openStudentDialog(item, true)}>Aktifkan</button>
+                                </div>
                                 <div if={state.editingID === item.id} class="action-buttons">
                                     <button class="btn btn-sm btn-success loading-{state.saving}" disabled={state.saving} onclick={() => saveName(item)}>Simpan</button>
                                     <button class="btn btn-sm" disabled={state.saving} onclick={cancelEdit}>Batal</button>
@@ -90,8 +139,12 @@
         students .student-create-grid, students .student-filters { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
         students .student-create-section small { display: block; margin-top: .5rem; }
         students .table-scroll { overflow-x: auto; }
-        students table { min-width: 720px; }
-        students .assignment-chip { height: auto; margin: .1rem .25rem .1rem 0; white-space: normal; }
+        students table { min-width: 820px; }
+        students .assignment-chip { height: auto; margin: .1rem .25rem .1rem 0; white-space: normal; display: inline-flex; align-items: center; gap: .25rem; }
+        students .chip-inactive { background: #f1f1f1; color: #888; }
+        students .chip-reason { font-size: .75rem; color: #888; }
+        students .btn-placement-restore { background: transparent; color: #2b7a3d; font-size: .7rem; padding: 0 .25rem; }
+        students .student-inactive-row td { opacity: .7; }
         students .action-buttons { display: flex; flex-wrap: wrap; gap: .35rem; }
         students .student-loading { margin: 2rem auto; }
         students .student-pagination { align-items: center; display: flex; flex-wrap: wrap; gap: .7rem; justify-content: space-between; margin-top: 1rem; }
@@ -104,18 +157,25 @@
 
     <script>
         const blankStudent = () => ({name: '', alternativeID: '', academicYearID: '', classLabel: ''})
+        const blankDialog = () => ({open: false, kind: '', studentID: '', studentName: '', studentClassID: '', reason: '', nextActive: false, saving: false, needsReason: false})
         export default {
             state: {
-                role: '', students: [], years: [], classes: [], filters: {query: '', academicYearID: '', classLabel: ''},
+                role: '', students: [], years: [], classes: [], filters: {query: '', academicYearID: '', classLabel: '', status: 'active'},
                 page: 1, pageSize: 50, total: 0, loading: true, creating: false, saving: false,
                 newStudent: blankStudent(), editingID: '', editingName: '', message: '', success: false,
+                dialog: blankDialog(),
             },
             onMounted() {
+                this.dialogKeydownHandler = event => this.closeDialogOnEscape(event)
+                window.addEventListener('keydown', this.dialogKeydownHandler)
                 Promise.all([axios.get('/api/v1/teacher/session/validate'), axios.get('/api/v1/academic-years'), axios.get('/api/v1/classes')])
                     .then(([profile, years, classes]) => {
                         this.update({role: profile.data.role, years: years.data.items || [], classes: classes.data.items || []})
                         this.loadStudents(1)
                     }).catch(error => { this.fail(error, 'Data siswa tidak dapat dimuat'); this.update({loading: false}) })
+            },
+            onBeforeUnmount() {
+                window.removeEventListener('keydown', this.dialogKeydownHandler)
             },
             isAdmin() { return this.state.role === 'school_admin' },
             editNewStudent(field, event) { this.state.newStudent[field] = event.target.value; this.update() },
@@ -139,7 +199,7 @@
             search(event) { event.preventDefault(); this.loadStudents(1) },
             resetFilters(event) {
                 event.preventDefault()
-                this.update({filters: {query: '', academicYearID: '', classLabel: ''}})
+                this.update({filters: {query: '', academicYearID: '', classLabel: '', status: 'active'}})
                 this.loadStudents(1)
             },
             loadStudents(page) {
@@ -173,6 +233,91 @@
             fail(error, fallback) {
                 const message = error.response && error.response.data && error.response.data.message
                 this.update({message: message || fallback, success: false})
+            },
+            openStudentDialog(item, nextActive) {
+                this.dialogTrigger = event && event.currentTarget
+                this.update({
+                    message: '',
+                    dialog: {open: true, kind: 'student', studentID: item.id, studentName: item.name, studentClassID: '', reason: '', nextActive, saving: false, needsReason: !nextActive},
+                })
+                window.requestAnimationFrame(() => {
+                    const confirm = document.getElementById('students-dialog-confirm')
+                    if (confirm) confirm.focus()
+                })
+            },
+            openPlacementDialog(assignment, item, nextActive) {
+                this.dialogTrigger = event && event.currentTarget
+                this.update({
+                    message: '',
+                    dialog: {open: true, kind: 'placement', studentID: item.id, studentName: item.name, studentClassID: assignment.studentClassID, reason: '', nextActive, saving: false, needsReason: !nextActive},
+                })
+                window.requestAnimationFrame(() => {
+                    const confirm = document.getElementById('students-dialog-confirm')
+                    if (confirm) confirm.focus()
+                })
+            },
+            closeDialog(event) {
+                if (event) event.preventDefault()
+                if (this.state.dialog.saving) return
+                this.update({dialog: blankDialog()})
+                if (this.dialogTrigger) {
+                    this.dialogTrigger.focus()
+                    this.dialogTrigger = null
+                }
+            },
+            closeDialogOnEscape(event) {
+                if (event.key === 'Escape' && this.state.dialog.open) {
+                    this.closeDialog(event)
+                }
+            },
+            dialogTitle() {
+                const d = this.state.dialog
+                if (d.kind === 'student') return d.nextActive ? 'Aktifkan Siswa' : 'Nonaktifkan Siswa'
+                if (d.kind === 'placement') return d.nextActive ? 'Aktifkan Penempatan' : 'Nonaktifkan Penempatan'
+                return ''
+            },
+            dialogDescription() {
+                const d = this.state.dialog
+                if (d.kind === 'student') return d.nextActive ? `Aktifkan kembali siswa "${d.studentName}"?` : `Nonaktifkan siswa "${d.studentName}"? Alasan wajib diisi.`
+                if (d.kind === 'placement') return d.nextActive ? 'Aktifkan kembali penempatan ini?' : 'Nonaktifkan penempatan ini? Alasan wajib diisi.'
+                return ''
+            },
+            dialogConfirmClass() {
+                const d = this.state.dialog
+                if (d.nextActive) return 'btn-success'
+                return 'btn-error'
+            },
+            dialogConfirmLabel() { return this.state.dialog.nextActive ? 'Aktifkan' : 'Nonaktifkan' },
+            dialogConfirmEnabled() {
+                const d = this.state.dialog
+                if (!d.needsReason) return true
+                return d.reason.trim().length > 0
+            },
+            confirmDialog(event) {
+                event.preventDefault()
+                const d = this.state.dialog
+                if (d.saving) return
+                if (d.needsReason && !d.reason.trim()) return
+                this.update({dialog: {...d, saving: true}, message: ''})
+                let request
+                if (d.kind === 'student') {
+                    request = axios.patch(`/api/v1/admin/students/${d.studentID}/status`, {active: d.nextActive, reason: d.reason.trim()})
+                } else if (d.kind === 'placement') {
+                    request = d.nextActive
+                        ? axios.patch(`/api/v1/student/class/${d.studentClassID}/restore`)
+                        : axios.patch(`/api/v1/student/class/${d.studentClassID}/deactivate`, {reason: d.reason.trim()})
+                }
+                if (!request) return
+                request.then(() => {
+                    const successMessage = d.kind === 'student'
+                        ? (d.nextActive ? 'Siswa berhasil diaktifkan' : 'Siswa berhasil dinonaktifkan')
+                        : (d.nextActive ? 'Penempatan berhasil diaktifkan' : 'Penempatan berhasil dinonaktifkan')
+                    this.update({dialog: blankDialog(), message: successMessage, success: true})
+                    this.loadStudents(this.state.page)
+                }).catch(error => {
+                    this.update({dialog: {...d, saving: false}})
+                    this.fail(error, 'Status tidak berhasil diubah')
+                })
             },
         }
     </script>

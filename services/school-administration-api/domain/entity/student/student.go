@@ -7,13 +7,15 @@ import (
 )
 
 type Student struct {
-	ID            string `gorm:"type:uuid;default:uuid_generate_v4()"`
-	SchoolID      string
-	Name          string
-	AlternativeID string
-	Graduated     bool
-	CreatedAt     time.Time
-	DeletedAt     gorm.DeletedAt
+	ID               string `gorm:"type:uuid;default:uuid_generate_v4()"`
+	SchoolID         string
+	Name             string
+	AlternativeID    string
+	Graduated        bool
+	Active           bool   `gorm:"default:true"`
+	DeactivateReason string
+	CreatedAt        time.Time
+	DeletedAt        gorm.DeletedAt
 }
 
 type StudentClass struct {
@@ -53,13 +55,17 @@ type ManagementAssignment struct {
 	AcademicYearID    string `json:"academicYearID"`
 	AcademicYearLabel string `json:"academicYearLabel"`
 	ClassLabel        string `json:"classLabel"`
+	Active            bool   `json:"active"`
+	DeactivateReason  string `json:"deactivateReason,omitempty"`
 }
 
 type ManagementStudent struct {
-	ID            string                 `json:"id"`
-	AlternativeID string                 `json:"alternativeID"`
-	Name          string                 `json:"name"`
-	Assignments   []ManagementAssignment `json:"assignments" gorm:"-"`
+	ID               string                 `json:"id"`
+	AlternativeID    string                 `json:"alternativeID"`
+	Name             string                 `json:"name"`
+	Active           bool                   `json:"active"`
+	DeactivateReason string                 `json:"deactivateReason,omitempty"`
+	Assignments      []ManagementAssignment `json:"assignments" gorm:"-"`
 }
 
 type ManagementStudentPage struct {
@@ -73,6 +79,7 @@ type StudentListOptions struct {
 	Query          string
 	AcademicYearID string
 	ClassLabel     string
+	Status         string
 	Page           int
 	PageSize       int
 }

@@ -81,7 +81,7 @@ func (r *sqlRepository) Apply(ctx context.Context, req setupSvc.Request, schoolI
 			studentKey := fold(input.AlternativeID)
 			var value *student.Student
 			if len(studentByKey[studentKey]) == 0 {
-				value = &student.Student{ID: uuid.NewV4().String(), SchoolID: schoolID, AlternativeID: input.AlternativeID, Name: input.Name}
+				value = &student.Student{ID: uuid.NewV4().String(), SchoolID: schoolID, AlternativeID: input.AlternativeID, Name: input.Name, Active: true}
 				if err := tx.Create(value).Error; err != nil {
 					return err
 				}

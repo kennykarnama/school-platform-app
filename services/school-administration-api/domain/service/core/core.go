@@ -19,6 +19,8 @@ type Service interface {
 	RegisterStudent(ctx context.Context, student *student.Student, class *student.StudentClass) error
 	ListStudents(ctx context.Context, options student.StudentListOptions) (*student.ManagementStudentPage, error)
 	UpdateStudentName(ctx context.Context, studentID, name string) error
+	SetStudentActive(ctx context.Context, studentID string, active bool, reason string) error
+	RestoreStudentClass(ctx context.Context, studentClassID string) error
 	SubmitAttendance(ctx context.Context, data []*student.StudentAttendance) error
 	ListAttendance(ctx context.Context, academicYearID string, classLabel string, attendanceDate string) ([]*student.Aggregate, error)
 	DeactivateStudentClass(ctx context.Context, studentClassID string, reason string) error
@@ -64,6 +66,25 @@ func (s *svc) UpdateStudentName(ctx context.Context, studentID, name string) err
 		return user.ErrForbidden
 	}
 	return s.repo.UpdateStudentName(ctx, studentID, strings.TrimSpace(name), *principal)
+}
+
+func (s *svc) SetStudentActive(ctx context.Context, studentID string, active bool, reason string) error {
+	principal, err := user.NewPrincipalFromCtx(ctx)
+	if err != nil {
+		return err
+	}
+	if principal.Role != user.RoleSchoolAdmin {
+		return user.ErrForbidden
+	}
+	return s.repo.SetStudentActive(ctx, studentID, active, strings.TrimSpace(reason), *principal)
+}
+
+func (s *svc) RestoreStudentClass(ctx context.Context, studentClassID string) error {
+	principal, err := user.NewPrincipalFromCtx(ctx)
+	if err != nil {
+		return err
+	}
+	return s.repo.RestoreStudentClass(ctx, studentClassID, *principal)
 }
 
 func (s *svc) SubmitAttendance(ctx context.Context, data []*student.StudentAttendance) error {

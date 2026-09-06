@@ -71,6 +71,11 @@ type DeactivateStudentClassRequest struct {
 	Reason string `json:"reason"`
 }
 
+type SetStudentActiveRequest struct {
+	Active bool   `json:"active"`
+	Reason string `json:"reason"`
+}
+
 type StatsAttendanceItem struct {
 	Name            string                 `json:"name"`
 	AttendanceStats []*AttendanceStatsItem `json:"statItems"`

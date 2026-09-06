@@ -17,6 +17,12 @@ type fakeStudentRepository struct {
 	updatePrincipal user.Principal
 	listedOptions   studentEntity.StudentListOptions
 	listedPrincipal user.Principal
+	setActiveID     string
+	setActiveValue  bool
+	setActiveReason string
+	setActivePrincipal user.Principal
+	restoreClassID  string
+	restorePrincipal user.Principal
 }
 
 func (r *fakeStudentRepository) UpdateStudentName(_ context.Context, studentID, name string, principal user.Principal) error {
@@ -30,6 +36,20 @@ func (r *fakeStudentRepository) ListStudents(_ context.Context, options studentE
 	r.listedOptions = options
 	r.listedPrincipal = principal
 	return &studentEntity.ManagementStudentPage{Items: []*studentEntity.ManagementStudent{}, Page: options.Page, PageSize: options.PageSize}, nil
+}
+
+func (r *fakeStudentRepository) SetStudentActive(_ context.Context, studentID string, active bool, reason string, principal user.Principal) error {
+	r.setActiveID = studentID
+	r.setActiveValue = active
+	r.setActiveReason = reason
+	r.setActivePrincipal = principal
+	return nil
+}
+
+func (r *fakeStudentRepository) RestoreStudentClass(_ context.Context, studentClassID string, principal user.Principal) error {
+	r.restoreClassID = studentClassID
+	r.restorePrincipal = principal
+	return nil
 }
 
 func TestUpdateStudentNameRequiresSchoolAdministrator(t *testing.T) {
@@ -70,5 +90,45 @@ func TestListStudentsPassesRoleAndFiltersToRepository(t *testing.T) {
 	}
 	if repo.listedOptions != options || repo.listedPrincipal.Role != user.RoleTeacher || repo.listedPrincipal.UserID != "teacher-1" {
 		t.Fatalf("unexpected repository call: options=%+v principal=%+v", repo.listedOptions, repo.listedPrincipal)
+	}
+}
+
+func TestSetStudentActiveRequiresSchoolAdministrator(t *testing.T) {
+	repo := &fakeStudentRepository{}
+	service := NewService(repo, nil)
+	ctx := user.Principal{UserID: "teacher-1", SchoolID: "school-1", Role: user.RoleTeacher}.NewCtx(context.Background())
+
+	err := service.SetStudentActive(ctx, "student-1", false, "alasan")
+	if !errors.Is(err, user.ErrForbidden) {
+		t.Fatalf("expected forbidden, got %v", err)
+	}
+	if repo.setActiveID != "" {
+		t.Fatal("repository must not be called for a teacher")
+	}
+}
+
+func TestSetStudentActivePassesReasonAndPrincipal(t *testing.T) {
+	repo := &fakeStudentRepository{}
+	service := NewService(repo, nil)
+	ctx := user.Principal{UserID: "admin-1", SchoolID: "school-1", Role: user.RoleSchoolAdmin}.NewCtx(context.Background())
+
+	if err := service.SetStudentActive(ctx, "student-1", false, "  pindah sekolah  "); err != nil {
+		t.Fatal(err)
+	}
+	if repo.setActiveID != "student-1" || repo.setActiveValue != false || repo.setActiveReason != "pindah sekolah" || repo.setActivePrincipal.SchoolID != "school-1" {
+		t.Fatalf("unexpected repository call: id=%q active=%v reason=%q principal=%+v", repo.setActiveID, repo.setActiveValue, repo.setActiveReason, repo.setActivePrincipal)
+	}
+}
+
+func TestRestoreStudentClassAllowsTeacherAndPassesPrincipal(t *testing.T) {
+	repo := &fakeStudentRepository{}
+	service := NewService(repo, nil)
+	ctx := user.Principal{UserID: "teacher-1", SchoolID: "school-1", Role: user.RoleTeacher}.NewCtx(context.Background())
+
+	if err := service.RestoreStudentClass(ctx, "class-1"); err != nil {
+		t.Fatal(err)
+	}
+	if repo.restoreClassID != "class-1" || repo.restorePrincipal.Role != user.RoleTeacher || repo.restorePrincipal.UserID != "teacher-1" {
+		t.Fatalf("unexpected repository call: id=%q principal=%+v", repo.restoreClassID, repo.restorePrincipal)
 	}
 }

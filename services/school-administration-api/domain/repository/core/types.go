@@ -18,6 +18,8 @@ type Repository interface {
 	RegisterStudent(ctx context.Context, student *entityStudent.Student, studentClass *entityStudent.StudentClass, principal user.Principal) error
 	ListStudents(ctx context.Context, options entityStudent.StudentListOptions, principal user.Principal) (*entityStudent.ManagementStudentPage, error)
 	UpdateStudentName(ctx context.Context, studentID, name string, principal user.Principal) error
+	SetStudentActive(ctx context.Context, studentID string, active bool, reason string, principal user.Principal) error
+	RestoreStudentClass(ctx context.Context, studentClassID string, principal user.Principal) error
 	SubmitAttendance(ctx context.Context, data []*student.StudentAttendance, principal user.Principal) error
 	ListAttendance(ctx context.Context, academicYearID string, classLabel string, attendanceDate string, principal user.Principal) ([]*entityStudent.Aggregate, error)
 	DeactivateStudentClass(ctx context.Context, studentClassID string, reason string, principal user.Principal) error
@@ -69,6 +71,11 @@ func (r *sqlRepository) RegisterStudent(ctx context.Context, student *entityStud
 func (r *sqlRepository) ListStudents(ctx context.Context, options entityStudent.StudentListOptions, principal user.Principal) (*entityStudent.ManagementStudentPage, error) {
 	db := r.db.WithContext(ctx)
 	query := db.Table("student").Where("student.school_id = ? AND student.deleted_at IS NULL", principal.SchoolID)
+	if options.Status == "active" {
+		query = query.Where("student.active = true")
+	} else if options.Status == "inactive" {
+		query = query.Where("student.active = false")
+	}
 	assignmentFilter := "EXISTS (SELECT 1 FROM student_class sc WHERE sc.student_id = student.id AND sc.school_id = student.school_id AND sc.deleted_at IS NULL AND EXISTS (SELECT 1 FROM academic_year ay WHERE ay.id = sc.academic_year_id AND ay.school_id = sc.school_id AND ay.deleted_at IS NULL) AND EXISTS (SELECT 1 FROM school_class active_class WHERE active_class.school_id = sc.school_id AND active_class.label = sc.class_label AND active_class.active = true)"
 	args := []interface{}{}
 	if options.AcademicYearID != "" {
@@ -97,7 +104,7 @@ func (r *sqlRepository) ListStudents(ctx context.Context, options entityStudent.
 		return nil, err
 	}
 	items := []*entityStudent.ManagementStudent{}
-	if err := query.Select("student.id, student.alternative_id, student.name").Order("lower(student.name), student.id").Offset((options.Page - 1) * options.PageSize).Limit(options.PageSize).Find(&items).Error; err != nil {
+	if err := query.Select("student.id, student.alternative_id, student.name, student.active, student.deactivate_reason").Order("lower(student.name), student.id").Offset((options.Page - 1) * options.PageSize).Limit(options.PageSize).Find(&items).Error; err != nil {
 		return nil, err
 	}
 	if len(items) == 0 {
@@ -117,12 +124,14 @@ func (r *sqlRepository) ListStudents(ctx context.Context, options entityStudent.
 		AcademicYearID    string
 		AcademicYearLabel string
 		ClassLabel        string
+		Active            bool
+		DeactivateReason  string
 	}
 	rows := []assignmentRow{}
-	assignments := db.Table("student_class sc").Select("sc.student_id, sc.id AS student_class_id, sc.academic_year_id, academic_year.label AS academic_year_label, sc.class_label").
+	assignments := db.Table("student_class sc").Select("sc.student_id, sc.id AS student_class_id, sc.academic_year_id, academic_year.label AS academic_year_label, sc.class_label, sc.deleted_at IS NULL AS active, COALESCE(sc.deactivate_reason, '') AS deactivate_reason").
 		Joins("JOIN academic_year ON academic_year.id = sc.academic_year_id AND academic_year.school_id = sc.school_id AND academic_year.deleted_at IS NULL").
 		Joins("JOIN school_class ON school_class.school_id = sc.school_id AND school_class.label = sc.class_label AND school_class.active = true").
-		Where("sc.school_id = ? AND sc.student_id IN ? AND sc.deleted_at IS NULL", principal.SchoolID, ids)
+		Where("sc.school_id = ? AND sc.student_id IN ?", principal.SchoolID, ids)
 	if options.AcademicYearID != "" {
 		assignments = assignments.Where("sc.academic_year_id = ?", options.AcademicYearID)
 	}
@@ -132,12 +141,12 @@ func (r *sqlRepository) ListStudents(ctx context.Context, options entityStudent.
 	if principal.Role == user.RoleTeacher {
 		assignments = assignments.Where("EXISTS (SELECT 1 FROM teacher_class_access access WHERE access.school_id = sc.school_id AND access.academic_year_id = sc.academic_year_id AND access.class_label = sc.class_label AND access.teacher_id = ?)", principal.UserID)
 	}
-	if err := assignments.Order("academic_year.created_at DESC, sc.class_label").Find(&rows).Error; err != nil {
+	if err := assignments.Order("active DESC, academic_year.created_at DESC, sc.class_label").Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	for _, row := range rows {
 		if item := byID[row.StudentID]; item != nil {
-			item.Assignments = append(item.Assignments, entityStudent.ManagementAssignment{StudentClassID: row.StudentClassID, AcademicYearID: row.AcademicYearID, AcademicYearLabel: row.AcademicYearLabel, ClassLabel: row.ClassLabel})
+			item.Assignments = append(item.Assignments, entityStudent.ManagementAssignment{StudentClassID: row.StudentClassID, AcademicYearID: row.AcademicYearID, AcademicYearLabel: row.AcademicYearLabel, ClassLabel: row.ClassLabel, Active: row.Active, DeactivateReason: row.DeactivateReason})
 		}
 	}
 	return &entityStudent.ManagementStudentPage{Items: items, Page: options.Page, PageSize: options.PageSize, Total: total}, nil
@@ -154,6 +163,48 @@ func (r *sqlRepository) UpdateStudentName(ctx context.Context, studentID, name s
 	return nil
 }
 
+func (r *sqlRepository) SetStudentActive(ctx context.Context, studentID string, active bool, reason string, principal user.Principal) error {
+	updates := map[string]interface{}{"active": active}
+	if active {
+		updates["deactivate_reason"] = nil
+	} else {
+		updates["deactivate_reason"] = reason
+	}
+	result := r.db.WithContext(ctx).Table("student").Where("id = ? AND school_id = ? AND deleted_at IS NULL", studentID, principal.SchoolID).Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return user.ErrForbidden
+	}
+	return nil
+}
+
+func (r *sqlRepository) RestoreStudentClass(ctx context.Context, studentClassID string, principal user.Principal) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var target entityStudent.StudentClass
+		if err := tx.Unscoped().Where("id = ? AND school_id = ? AND deleted_at IS NOT NULL", studentClassID, principal.SchoolID).First(&target).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return user.ErrForbidden
+			}
+			return err
+		}
+		if principal.Role == user.RoleTeacher && !hasClassAccess(tx, principal, target.AcademicYearID, target.ClassLabel) {
+			return user.ErrForbidden
+		}
+		var clash int64
+		if err := tx.Table("student_class").Where("student_id = ? AND school_id = ? AND academic_year_id = ? AND id <> ? AND deleted_at IS NULL",
+			target.StudentID, principal.SchoolID, target.AcademicYearID, target.ID).Count(&clash).Error; err != nil {
+			return err
+		}
+		if clash > 0 {
+			return entityStudent.ErrActivePlacementAlreadyExists
+		}
+		return tx.Table("student_class").Where("id = ? AND school_id = ?", target.ID, principal.SchoolID).
+			Updates(map[string]interface{}{"deleted_at": nil, "deactivate_reason": nil}).Error
+	})
+}
+
 func (r *sqlRepository) SubmitAttendance(ctx context.Context, data []*entityStudent.StudentAttendance, principal user.Principal) error {
 	if len(data) == 0 {
 		return nil
@@ -168,7 +219,8 @@ func (r *sqlRepository) SubmitAttendance(ctx context.Context, data []*entityStud
 		item.SchoolID = principal.SchoolID
 	}
 	var allowed int64
-	query := r.db.WithContext(ctx).Table("student_class").Where("id IN ? AND school_id = ? AND deleted_at IS NULL", ids, principal.SchoolID)
+	query := r.db.WithContext(ctx).Table("student_class").Where("id IN ? AND school_id = ? AND deleted_at IS NULL", ids, principal.SchoolID).
+		Where("EXISTS (SELECT 1 FROM student s WHERE s.id = student_class.student_id AND s.school_id = student_class.school_id AND s.active = true AND s.deleted_at IS NULL)")
 	if principal.Role == user.RoleTeacher {
 		query = withTeacherAccess(query, principal)
 	}
@@ -213,7 +265,7 @@ func (r *sqlRepository) ListAttendance(ctx context.Context, academicYearID strin
 		"student_attendance.attendance_date::date as attendance_date, student_attendance.attendance_type_id as attendance_type_id").
 		Joins("inner join student_class ON student_class.student_id = student.id AND student_class.school_id = ?", principal.SchoolID).
 		Joins("left join student_attendance ON student_attendance.student_class_id = student_class.id AND student_attendance.attendance_date = ?", attendanceDate).
-		Where("student.school_id = ? AND academic_year_id = ? AND class_label = ? AND student_class.deleted_at IS NULL", principal.SchoolID, academicYearID, classLabel)
+		Where("student.school_id = ? AND academic_year_id = ? AND class_label = ? AND student_class.deleted_at IS NULL AND student.active = true", principal.SchoolID, academicYearID, classLabel)
 	if principal.Role == user.RoleTeacher {
 		query = withTeacherAccess(query, principal)
 	}
@@ -247,7 +299,7 @@ func (r *sqlRepository) StudentAttendances(ctx context.Context, academicYearID s
 		return nil, user.ErrForbidden
 	}
 	var results []*entityStudent.StudentAttendance
-	q := r.db.WithContext(ctx).Table("student_attendance").Select("student_attendance.*").Joins("inner join student_class on student_class.id = student_attendance.student_class_id and student_class.deleted_at is null").Where("student_attendance.school_id = ? AND student_class.school_id = ?", principal.SchoolID, principal.SchoolID)
+	q := r.db.WithContext(ctx).Table("student_attendance").Select("student_attendance.*").Joins("inner join student_class on student_class.id = student_attendance.student_class_id and student_class.deleted_at is null").Joins("inner join student on student.id = student_class.student_id and student.active = true and student.deleted_at is null").Where("student_attendance.school_id = ? AND student_class.school_id = ?", principal.SchoolID, principal.SchoolID)
 	if from != nil {
 		q = q.Where("student_attendance.attendance_date::date >= ?", *from)
 	}
@@ -273,7 +325,7 @@ func (r *sqlRepository) StudentClassesAggregate(ctx context.Context, academicYea
 	var results []*entityStudent.Aggregate
 	query := r.db.WithContext(ctx).Table("student_class").Select("student.id AS student_id, student.name, student_class.id as student_class_id").
 		Joins("inner join student on student.id = student_class.student_id").
-		Where("student.school_id = ? AND student_class.school_id = ? AND academic_year_id = ? AND class_label = ? AND student_class.deleted_at IS NULL", principal.SchoolID, principal.SchoolID, academicYearID, classLabel)
+		Where("student.school_id = ? AND student_class.school_id = ? AND academic_year_id = ? AND class_label = ? AND student_class.deleted_at IS NULL AND student.active = true", principal.SchoolID, principal.SchoolID, academicYearID, classLabel)
 	if principal.Role == user.RoleTeacher {
 		query = withTeacherAccess(query, principal)
 	}

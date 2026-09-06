@@ -36,6 +36,8 @@ func ErrorToHTTPStatus(err error) int {
 		return http.StatusForbidden
 	case student.ErrAlternativeIDAlreadyExists:
 		return http.StatusConflict
+	case student.ErrActivePlacementAlreadyExists:
+		return http.StatusConflict
 	case gorm.ErrRecordNotFound:
 		return http.StatusNotFound
 	default:

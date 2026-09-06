@@ -94,7 +94,9 @@ func main() {
 	r.Handle("/api/v1/academic-years", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.ListAcademicYear))).Methods("GET")
 	r.Handle("/api/v1/classes", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.ListClasses))).Methods("GET")
 	r.Handle("/api/v1/attendance/types", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.ListAttendanceTypes))).Methods("GET")
-	r.Handle("/api/v1/student/class/{id}/deactivate", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.DeactivateStudentClass))).Methods("PATCH")
+	r.Handle("/api/v1/student/class/{id}/deactivate", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.DeactivateStudentClass)))).Methods("PATCH")
+	r.Handle("/api/v1/student/class/{id}/restore", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.RestoreStudentClass)))).Methods("PATCH")
+	r.Handle("/api/v1/admin/students/{id}/status", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.SetStudentActive)))).Methods("PATCH")
 	r.Handle("/api/v1/student/class/transfer", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.TransferStudentClass))).Methods("POST")
 	r.Handle("/api/v1/student/attendance/stats", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.Stats))).Methods("GET")
 

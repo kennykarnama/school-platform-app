@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -78,6 +79,7 @@ func (h *Handler) createStudent(w http.ResponseWriter, r *http.Request, includeS
 	newStudent := &student.Student{
 		Name:          req.Name,
 		AlternativeID: alternativeID,
+		Active:        true,
 		CreatedAt:     ts,
 	}
 	newStudentClass := &student.StudentClass{
@@ -119,7 +121,8 @@ func (h *Handler) ListStudents(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.coreSvc.ListStudents(r.Context(), student.StudentListOptions{
 		Query: strings.TrimSpace(values.Get("query")), AcademicYearID: strings.TrimSpace(values.Get("academicYearID")),
-		ClassLabel: strings.ToUpper(strings.TrimSpace(values.Get("classLabel"))), Page: page, PageSize: pageSize,
+		ClassLabel: strings.ToUpper(strings.TrimSpace(values.Get("classLabel"))), Status: strings.TrimSpace(values.Get("status")),
+		Page: page, PageSize: pageSize,
 	})
 	if err != nil {
 		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
@@ -356,6 +359,10 @@ func (h *Handler) DeactivateStudentClass(w http.ResponseWriter, r *http.Request)
 		}, ErrorToHTTPStatus(err))
 		return
 	}
+	if strings.TrimSpace(req.Reason) == "" {
+		ResponseJson(w, ErrorResponse{Message: "Alasan penonaktifan wajib diisi"}, http.StatusBadRequest)
+		return
+	}
 
 	err = h.coreSvc.DeactivateStudentClass(r.Context(), id, req.Reason)
 	if err != nil {
@@ -365,7 +372,45 @@ func (h *Handler) DeactivateStudentClass(w http.ResponseWriter, r *http.Request)
 		}, ErrorToHTTPStatus(err))
 		return
 	}
-	return
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) SetStudentActive(w http.ResponseWriter, r *http.Request) {
+	var req SetStudentActiveRequest
+	if err := util.DecodeToStruct(r.Body, &req); err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	if !req.Active && strings.TrimSpace(req.Reason) == "" {
+		ResponseJson(w, ErrorResponse{Message: "Alasan penonaktifan wajib diisi"}, http.StatusBadRequest)
+		return
+	}
+	if err := h.coreSvc.SetStudentActive(r.Context(), mux.Vars(r)["id"], req.Active, req.Reason); err != nil {
+		if errors.Is(err, student.ErrActivePlacementAlreadyExists) {
+			ResponseJson(w, ErrorResponse{Message: "Siswa sudah memiliki penempatan aktif untuk tahun ajaran ini"}, http.StatusConflict)
+			return
+		}
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) RestoreStudentClass(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		ResponseJson(w, ErrorResponse{Message: "studentClassID is required"}, http.StatusBadRequest)
+		return
+	}
+	if err := h.coreSvc.RestoreStudentClass(r.Context(), id); err != nil {
+		if errors.Is(err, student.ErrActivePlacementAlreadyExists) {
+			ResponseJson(w, ErrorResponse{Message: "Siswa sudah memiliki penempatan aktif untuk tahun ajaran ini"}, http.StatusConflict)
+			return
+		}
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {

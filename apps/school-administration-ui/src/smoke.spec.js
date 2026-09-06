@@ -118,6 +118,11 @@ describe('administration UI test environment', () => {
         expect(students).to.include("axios.get('/api/v1/students'")
         expect(students).to.include("axios.post('/api/v1/students'")
         expect(students).to.include('axios.patch(`/api/v1/admin/students/${item.id}`')
+        expect(students).to.include('axios.patch(`/api/v1/admin/students/${d.studentID}/status`')
+        expect(students).to.include('axios.patch(`/api/v1/student/class/${d.studentClassID}/deactivate`')
+        expect(students).to.include('axios.patch(`/api/v1/student/class/${d.studentClassID}/restore`')
+        expect(students).to.include('role="dialog"')
+        expect(students).to.include("aria-modal=\"true\"")
         expect(attendanceCreate).to.include("url: '/api/v1/students'")
     })
 
