@@ -138,3 +138,9 @@ type TransferStudentClassRequest struct {
 	DestinationAcademicYearId string `json:"destinationAcademicYearId" validate:"required"`
 	DestinationClassLabel     string `json:"destinationClassLabel" validate:"required"`
 }
+
+type TransferStudentsRequest struct {
+	StudentClassIDs           []string `json:"studentClassIDs" validate:"required,min=1"`
+	DestinationAcademicYearID string   `json:"destinationAcademicYearId" validate:"required"`
+	DestinationClassLabel     string   `json:"destinationClassLabel" validate:"required"`
+}

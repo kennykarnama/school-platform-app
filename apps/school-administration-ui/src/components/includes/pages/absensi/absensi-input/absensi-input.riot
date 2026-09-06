@@ -31,7 +31,7 @@
     <div class={state.loadingData}>
 
     </div>
-    <absensi-table students={state.students} attendanceDate={state.selectedAttendanceDate}></absensi-table>
+    <absensi-table students={state.students} attendanceDate={state.selectedAttendanceDate} academicYearID={state.selectedAcademicYear} classLabel={state.selectedClass} academicYears={state.academicYears} classItems={state.classItems}></absensi-table>
     <script>
         import AbsensiTable from '../absensi-table/absensi-table.riot';
 

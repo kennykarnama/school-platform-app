@@ -121,9 +121,19 @@ describe('administration UI test environment', () => {
         expect(students).to.include('axios.patch(`/api/v1/admin/students/${d.studentID}/status`')
         expect(students).to.include('axios.patch(`/api/v1/student/class/${d.studentClassID}/deactivate`')
         expect(students).to.include('axios.patch(`/api/v1/student/class/${d.studentClassID}/restore`')
+        expect(students).to.include("axios.post('/api/v1/student/transfer'")
         expect(students).to.include('role="dialog"')
         expect(students).to.include("aria-modal=\"true\"")
         expect(attendanceCreate).to.include("url: '/api/v1/students'")
+    })
+
+    it('supports per-student transfer from the attendance table', () => {
+        const absensiTable = fs.readFileSync(
+            path.join(__dirname, 'components/includes/pages/absensi/absensi-table/absensi-table.riot'),
+            'utf8',
+        )
+        expect(absensiTable).to.include("axios.post('/api/v1/student/transfer'")
+        expect(absensiTable).to.include('role="dialog"')
     })
 
     it('sends class labels to class-scoped attendance APIs', () => {

@@ -98,6 +98,7 @@ func main() {
 	r.Handle("/api/v1/student/class/{id}/restore", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.RestoreStudentClass)))).Methods("PATCH")
 	r.Handle("/api/v1/admin/students/{id}/status", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.SetStudentActive)))).Methods("PATCH")
 	r.Handle("/api/v1/student/class/transfer", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.TransferStudentClass))).Methods("POST")
+	r.Handle("/api/v1/student/transfer", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.TransferStudents)))).Methods("POST")
 	r.Handle("/api/v1/student/attendance/stats", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(coreHandler.Stats))).Methods("GET")
 
 	r.Handle("/api/v1/teacher/login", handlers.LoggingHandler(os.Stdout, http.HandlerFunc(userHandler.Login))).Methods("POST")

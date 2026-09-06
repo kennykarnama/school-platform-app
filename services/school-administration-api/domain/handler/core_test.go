@@ -22,6 +22,11 @@ type fakeCoreService struct {
 	restoreClassID  string
 	deactivateID    string
 	deactivateReason string
+	transferIDs     []string
+	transferDestYear  string
+	transferDestClass string
+	transferCount   int
+	transferErr     error
 }
 
 func (f *fakeCoreService) RegisterStudent(context.Context, *student.Student, *student.StudentClass) error { return nil }
@@ -50,6 +55,12 @@ func (f *fakeCoreService) DeactivateStudentClass(_ context.Context, studentClass
 }
 func (f *fakeCoreService) StatsByAttendanceType(context.Context, coreSvc.StatByRangeRequest) (*coreSvc.StatByRangeResponse, error) { return nil, nil }
 func (f *fakeCoreService) TransferStudentClass(context.Context, string, string, string, string) error { return nil }
+func (f *fakeCoreService) TransferStudents(_ context.Context, studentClassIDs []string, destYear, destClass string) (int, error) {
+	f.transferIDs = studentClassIDs
+	f.transferDestYear = destYear
+	f.transferDestClass = destClass
+	return f.transferCount, f.transferErr
+}
 
 func newCoreHandler(svc *fakeCoreService) *Handler {
 	return &Handler{
@@ -224,4 +235,62 @@ type forbiddenCoreService struct{ fakeCoreService }
 
 func (f *forbiddenCoreService) SetStudentActive(context.Context, string, bool, string) error {
 	return user.ErrForbidden
+}
+
+func TestTransferStudentsRejectsEmptyIDs(t *testing.T) {
+	svc := &fakeCoreService{}
+	h := newCoreHandler(svc)
+	body := strings.NewReader(`{"studentClassIDs":[],"destinationAcademicYearId":"year-1","destinationClassLabel":"KELAS I A"}`)
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/student/transfer", body)
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.TransferStudents(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	if svc.transferIDs != nil {
+		t.Fatal("service must not be called with empty IDs")
+	}
+}
+
+func TestTransferStudentsReturnsCount(t *testing.T) {
+	svc := &fakeCoreService{transferCount: 3}
+	h := newCoreHandler(svc)
+	body := strings.NewReader(`{"studentClassIDs":["id-1","id-2","id-3"],"destinationAcademicYearId":"year-1","destinationClassLabel":"KELAS I B"}`)
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/student/transfer", body)
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.TransferStudents(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if len(svc.transferIDs) != 3 || svc.transferDestYear != "year-1" || svc.transferDestClass != "KELAS I B" {
+		t.Fatalf("unexpected service call: ids=%v year=%q class=%q", svc.transferIDs, svc.transferDestYear, svc.transferDestClass)
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["transferred"] != float64(3) {
+		t.Fatalf("expected transferred=3, got %v", resp["transferred"])
+	}
+}
+
+func TestTransferStudentsReturns409OnClash(t *testing.T) {
+	svc := &fakeCoreService{transferErr: student.ErrActivePlacementAlreadyExists}
+	h := newCoreHandler(svc)
+	body := strings.NewReader(`{"studentClassIDs":["id-1"],"destinationAcademicYearId":"year-1","destinationClassLabel":"KELAS I A"}`)
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/student/transfer", body)
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.TransferStudents(w, r)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", w.Code)
+	}
 }

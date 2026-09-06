@@ -545,3 +545,25 @@ func (h *Handler) TransferStudentClass(w http.ResponseWriter, r *http.Request) {
 	}
 	ResponseJson(w, struct{}{}, http.StatusCreated)
 }
+
+func (h *Handler) TransferStudents(w http.ResponseWriter, r *http.Request) {
+	var req TransferStudentsRequest
+	if err := util.DecodeToStruct(r.Body, &req); err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	if err := h.validate.Struct(&req); err != nil {
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	count, err := h.coreSvc.TransferStudents(r.Context(), req.StudentClassIDs, req.DestinationAcademicYearID, req.DestinationClassLabel)
+	if err != nil {
+		if errors.Is(err, student.ErrActivePlacementAlreadyExists) {
+			ResponseJson(w, ErrorResponse{Message: "Siswa sudah memiliki penempatan aktif untuk tahun ajaran tujuan"}, http.StatusConflict)
+			return
+		}
+		ResponseJson(w, ErrorResponse{Message: err.Error()}, ErrorToHTTPStatus(err))
+		return
+	}
+	ResponseJson(w, map[string]interface{}{"transferred": count}, http.StatusOK)
+}

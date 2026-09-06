@@ -26,6 +26,7 @@ type Service interface {
 	DeactivateStudentClass(ctx context.Context, studentClassID string, reason string) error
 	StatsByAttendanceType(ctx context.Context, req StatByRangeRequest) (*StatByRangeResponse, error)
 	TransferStudentClass(ctx context.Context, sourceAcademicYear, sourceClass, destinationAcademicYear, destinationClass string) error
+	TransferStudents(ctx context.Context, studentClassIDs []string, destAcademicYearID, destClassLabel string) (int, error)
 }
 
 type svc struct {
@@ -226,4 +227,12 @@ func (s *svc) TransferStudentClass(ctx context.Context, sourceAcademicYear, sour
 		return err
 	}
 	return nil
+}
+
+func (s *svc) TransferStudents(ctx context.Context, studentClassIDs []string, destAcademicYearID, destClassLabel string) (int, error) {
+	principal, err := user.NewPrincipalFromCtx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return s.repo.TransferStudents(ctx, studentClassIDs, destAcademicYearID, strings.ToUpper(strings.TrimSpace(destClassLabel)), *principal)
 }

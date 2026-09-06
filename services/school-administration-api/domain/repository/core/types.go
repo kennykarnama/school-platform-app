@@ -10,6 +10,7 @@ import (
 	"github.com/kennykarnama/school-adminstration-api/domain/entity/student"
 	entityStudent "github.com/kennykarnama/school-adminstration-api/domain/entity/student"
 	"github.com/kennykarnama/school-adminstration-api/domain/entity/user"
+	uuid "github.com/satori/go.uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -27,6 +28,7 @@ type Repository interface {
 	StudentAttendances(ctx context.Context, academicYearID string, classLabel string, from *string, to *string, principal user.Principal) ([]*entityStudent.StudentAttendance, error)
 	StudentClasses(ctx context.Context, academicYearID, classLabel string, principal user.Principal) ([]*entityStudent.StudentClass, error)
 	SaveStudentClasses(ctx context.Context, studentClasses []*entityStudent.StudentClass) error
+	TransferStudents(ctx context.Context, studentClassIDs []string, destAcademicYearID, destClassLabel string, principal user.Principal) (int, error)
 }
 
 type sqlRepository struct {
@@ -379,4 +381,55 @@ func (r *sqlRepository) SaveStudentClasses(ctx context.Context, studentClasses [
 		return err
 	}
 	return nil
+}
+
+func (r *sqlRepository) TransferStudents(ctx context.Context, studentClassIDs []string, destAcademicYearID, destClassLabel string, principal user.Principal) (int, error) {
+	count := 0
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, scID := range studentClassIDs {
+			var source entityStudent.StudentClass
+			if err := tx.Where("id = ? AND school_id = ? AND deleted_at IS NULL", scID, principal.SchoolID).First(&source).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return user.ErrForbidden
+				}
+				return err
+			}
+			if principal.Role == user.RoleTeacher {
+				if !hasClassAccess(tx, principal, source.AcademicYearID, source.ClassLabel) {
+					return user.ErrForbidden
+				}
+				if !hasClassAccess(tx, principal, destAcademicYearID, destClassLabel) {
+					return user.ErrForbidden
+				}
+			}
+			var clash int64
+			if err := tx.Table("student_class").Where("student_id = ? AND school_id = ? AND academic_year_id = ? AND deleted_at IS NULL",
+				source.StudentID, principal.SchoolID, destAcademicYearID).Count(&clash).Error; err != nil {
+				return err
+			}
+			if clash > 0 {
+				return entityStudent.ErrActivePlacementAlreadyExists
+			}
+			now := time.Now().UTC()
+			if err := tx.Table("student_class").Where("id = ? AND school_id = ?", scID, principal.SchoolID).
+				Updates(map[string]interface{}{"deleted_at": now, "deactivate_reason": "Transfer"}).Error; err != nil {
+				return err
+			}
+			newRow := &entityStudent.StudentClass{
+				ID:             uuid.NewV4().String(),
+				SchoolID:       principal.SchoolID,
+				StudentID:      source.StudentID,
+				ClassLabel:     destClassLabel,
+				AcademicYearID: destAcademicYearID,
+				UserID:         principal.UserID,
+				CreatedAt:      now,
+			}
+			if err := tx.Create(newRow).Error; err != nil {
+				return err
+			}
+			count++
+		}
+		return nil
+	})
+	return count, err
 }
