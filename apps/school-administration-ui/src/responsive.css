@@ -127,9 +127,6 @@ table.table {
     absensi-table .empty-action .btn { margin: 0 !important; width: 100%; }
     absensi-table > .container[style] .columns { display: block; margin: 0; }
     absensi-table > .container[style] [class*="col"] { margin-bottom: .5rem; width: 100%; }
-
-    .modal-container .modal-footer { display: flex; gap: .4rem; }
-    .modal-container .modal-footer .btn { margin: 0 !important; }
 }
 
 /* Login uses the whole viewport instead of reserving the navigation column. */
@@ -171,7 +168,14 @@ absensi-table td:first-child { min-width: 10rem; max-width: 20rem; white-space: 
 absensi-table .form-select { min-width: 10rem; }
 rekap-chart { position: relative; width: 100%; height: clamp(18rem, 45vw, 26rem); margin-top: 1rem; }
 .modal .modal-container { width: 100%; max-height: calc(100dvh - 2rem); }
-.modal-container .modal-footer { flex-wrap: wrap; }
+.modal-container .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+.modal-container .modal-footer .btn { margin: 0 !important; }
 
 @media (max-width: 1100px) and (min-width: 601px) {
     .app-page administration .columns > .column,

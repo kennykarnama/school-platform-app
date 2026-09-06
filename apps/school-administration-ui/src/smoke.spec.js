@@ -150,4 +150,21 @@ describe('administration UI test environment', () => {
             expect(page).to.include('value={classItem.label}')
         })
     })
+
+    it('configures consistent button spacing and flex layout for dialog boxes', () => {
+        const responsiveCss = fs.readFileSync(
+            path.join(__dirname, 'responsive.css'),
+            'utf8',
+        )
+        const absensiTable = fs.readFileSync(
+            path.join(__dirname, 'components/includes/pages/absensi/absensi-table/absensi-table.riot'),
+            'utf8',
+        )
+
+        expect(responsiveCss).to.match(/\.modal-container \.modal-footer\s*\{[^}]*display:\s*flex;/)
+        expect(responsiveCss).to.match(/\.modal-container \.modal-footer\s*\{[^}]*justify-content:\s*flex-end;/)
+        expect(responsiveCss).to.match(/\.modal-container \.modal-footer\s*\{[^}]*gap:\s*\.5rem;/)
+        expect(absensiTable).not.to.include('style="margin-right: 2%;"')
+    })
 })
+
