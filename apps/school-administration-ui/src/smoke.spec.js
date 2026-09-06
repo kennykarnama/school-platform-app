@@ -120,4 +120,19 @@ describe('administration UI test environment', () => {
         expect(students).to.include('axios.patch(`/api/v1/admin/students/${item.id}`')
         expect(attendanceCreate).to.include("url: '/api/v1/students'")
     })
+
+    it('sends class labels to class-scoped attendance APIs', () => {
+        const attendancePages = [
+            'components/includes/pages/absensi/absensi-input/absensi-input.riot',
+            'components/includes/pages/absensi/absensi-input-form/absensi-input-form.riot',
+            'components/includes/pages/absensi/absensi-transfer-form/absensi-transfer-form.riot',
+            'components/includes/pages/absensi/rekap/rekap.riot',
+            'components/includes/pages/absensi/rekap/rekap-klasikal.riot',
+        ].map(file => fs.readFileSync(path.join(__dirname, file), 'utf8'))
+
+        attendancePages.forEach(page => {
+            expect(page).not.to.include('value={classItem.ID}')
+            expect(page).to.include('value={classItem.label}')
+        })
+    })
 })
