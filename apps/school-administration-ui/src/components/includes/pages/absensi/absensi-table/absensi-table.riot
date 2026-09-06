@@ -1,5 +1,10 @@
 <absensi-table>
 
+    <div if={state.showToast} class="toast toast-{state.toastSuccess ? 'success' : 'error'} toast-fixed">
+        <button class="btn btn-clear float-right" onclick={closeToast}></button>
+        {state.toastMessage}
+    </div>
+
     <div class="modal {state.showModalDeactivateReason ? 'active' : ''}" id="modal-deactivate-reason">
         <div class="modal-container">
             <div class="modal-header">
@@ -164,19 +169,12 @@
                         Pindahkan ({state.selectedStudentClassIDs.length})
                     </button>
                 </div>
-                <div class="col-4">
-                    <template if={state.showToast}>
-                        <div class="toast toast-{state.toastSuccess ? 'success' : 'error'}">
-                            <button class="btn btn-clear float-right" onclick={closeToast}></button>
-                            {state.toastMessage}
-                        </div>
-                    </template>
-                </div>
             </div>
         </div>
 
         <style>
             absensi-table .checkbox-col { width: 2.5rem; text-align: center; }
+            absensi-table .toast-fixed { position: fixed; top: 1rem; right: 1rem; z-index: 200; min-width: 20rem; max-width: 28rem; }
         </style>
 
         <script>
