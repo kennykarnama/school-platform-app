@@ -51,6 +51,81 @@
         </div>
     </div>
 
+    <div class="modal modal-lg {state.importModal.open ? 'active' : ''}"
+         role="dialog"
+         aria-modal="true"
+         aria-hidden={!state.importModal.open}
+         aria-labelledby="students-import-dialog-title">
+        <a class="modal-overlay" href="#close" role="button" aria-label="Tutup dialog impor" onclick={closeImportModal}></a>
+        <div class="modal-container">
+            <div class="modal-header">
+                <button class="btn btn-clear float-right" aria-label="Tutup" disabled={state.importModal.applying} onclick={closeImportModal}></button>
+                <div class="modal-title h5" id="students-import-dialog-title">Impor Data Siswa</div>
+            </div>
+            <div class="modal-body">
+                <div class="content">
+                    <p>Unggah file Excel (<code>.xlsx</code>) atau CSV (<code>.csv</code>) untuk menambahkan atau memperbarui data siswa beserta penempatan kelasnya.</p>
+                    <div class="import-step mb-2">
+                        <label class="form-label"><strong>Langkah 1: Unduh Template</strong></label>
+                        <a class="btn btn-sm" href="/api/v1/setup/students/template" target="_blank" download>Unduh Template Excel</a>
+                    </div>
+                    <div class="import-step mb-2">
+                        <label class="form-label" for="students-import-file"><strong>Langkah 2: Pilih File Siswa</strong></label>
+                        <input id="students-import-file"
+                               class="form-input"
+                               type="file"
+                               accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                               disabled={state.importModal.loading || state.importModal.applying}
+                               onchange={handleImportFileChange}>
+                    </div>
+                    <div if={state.importModal.loading} class="loading loading-lg my-2" aria-label="Membaca dan memvalidasi file"></div>
+                    <div if={state.importModal.message} class="toast toast-{state.importModal.success ? 'success' : 'error'} my-2">
+                        {state.importModal.message}
+                    </div>
+                    <div if={state.importModal.preview} class="import-preview-section">
+                        <div class="toast toast-{state.importModal.preview.valid ? 'success' : 'error'} my-2">
+                            {state.importModal.preview.valid ? 'Data valid dan siap diterapkan.' : 'Perbaiki kesalahan sebelum menerapkan data.'}
+                            Buat: {state.importModal.preview.summary.create}, ubah: {state.importModal.preview.summary.update}, tetap: {state.importModal.preview.summary.unchanged}.
+                        </div>
+                        <div class="table-scroll" tabindex="0" role="region" aria-label="Pratinjau impor siswa">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Baris</th>
+                                        <th>ID Siswa</th>
+                                        <th>Nama</th>
+                                        <th>Tahun Ajaran</th>
+                                        <th>Kelas</th>
+                                        <th>Aksi</th>
+                                        <th>Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr each={item in state.importModal.preview.items}>
+                                        <td>{item.index + 1}</td>
+                                        <td><code>{item.key}</code></td>
+                                        <td>{getPreviewStudentName(item.index)}</td>
+                                        <td>{getPreviewStudentYear(item.index)}</td>
+                                        <td>{getPreviewStudentClass(item.index)}</td>
+                                        <td><span class="label label-{actionClass(item.action)}">{actionLabel(item.action)}</span></td>
+                                        <td>{(item.errors || []).join('; ')}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" disabled={state.importModal.applying} onclick={closeImportModal}>Batal</button>
+                <button id="students-import-confirm"
+                        class="btn btn-success loading-{state.importModal.applying}"
+                        disabled={state.importModal.applying || state.importModal.loading || !state.importModal.preview || !state.importModal.preview.valid}
+                        onclick={applyImport}>Terapkan Data</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container students-page">
         <h2>Manajemen Siswa</h2>
         <p class="text-gray">Cari siswa berdasarkan nama atau ID dan lihat penempatan kelas aktif.</p>
@@ -60,9 +135,15 @@
             {state.message}
         </div>
 
-        <section if={isAdmin()} class="student-create-section">
-            <h4>Tambah Siswa</h4>
-            <div class="student-create-grid">
+        <section if={canManage()} class="student-create-section">
+            <div class="section-title">
+                <h4>Tambah Siswa</h4>
+                <div class="section-actions">
+                    <a class="btn btn-sm" href="/api/v1/setup/students/template" target="_blank" download>Unduh Template</a>
+                    <button class="btn btn-sm btn-primary" onclick={openImportModal}>Impor Siswa</button>
+                </div>
+            </div>
+            <div if={isAdmin()} class="student-create-grid">
                 <input class="form-input" aria-label="Nama siswa baru" placeholder="Nama lengkap" value={state.newStudent.name} oninput={event => editNewStudent('name', event)}>
                 <input class="form-input" aria-label="ID alternatif siswa baru" placeholder="ID alternatif (opsional)" value={state.newStudent.alternativeID} oninput={event => editNewStudent('alternativeID', event)}>
                 <select class="form-select" aria-label="Tahun akademik siswa baru" value={state.newStudent.academicYearID} onchange={event => editNewStudent('academicYearID', event)}>
@@ -75,7 +156,7 @@
                 </select>
                 <button class="btn btn-primary loading-{state.creating}" disabled={state.creating} onclick={createStudent}>Tambah Siswa</button>
             </div>
-            <small class="text-gray">ID alternatif akan dibuat otomatis jika dikosongkan dan tidak dapat diubah setelah siswa dibuat.</small>
+            <small if={isAdmin()} class="text-gray">ID alternatif akan dibuat otomatis jika dikosongkan dan tidak dapat diubah setelah siswa dibuat.</small>
         </section>
 
         <section>
@@ -163,6 +244,12 @@
 
     <style>
         students section { margin-top: 2rem; }
+        students .section-title { align-items: center; display: flex; flex-wrap: wrap; gap: .6rem; justify-content: space-between; margin-bottom: .6rem; }
+        students .section-title h4 { margin: 0; }
+        students .section-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+        students .modal.modal-lg .modal-container { max-width: min(52rem, calc(100vw - 1.5rem)); }
+        students .import-preview-section { margin-top: 1rem; }
+        students .import-preview-section table { min-width: 600px; }
         students .student-create-grid, students .student-filters { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
         students .student-create-section small { display: block; margin-top: .5rem; }
         students .table-scroll { overflow-x: auto; }
@@ -187,12 +274,22 @@
     <script>
         const blankStudent = () => ({name: '', alternativeID: '', academicYearID: '', classLabel: ''})
         const blankDialog = () => ({open: false, kind: '', studentID: '', studentName: '', studentClassID: '', reason: '', nextActive: false, saving: false, needsReason: false, destYear: '', destClass: ''})
+        const blankImportModal = (overrides = {}) => ({
+            open: false,
+            students: [],
+            preview: null,
+            loading: false,
+            applying: false,
+            message: '',
+            success: false,
+            ...overrides,
+        })
         export default {
             state: {
                 role: '', students: [], years: [], classes: [], filters: {query: '', academicYearID: '', classLabel: '', status: 'active'},
                 page: 1, pageSize: 50, total: 0, loading: true, creating: false, saving: false,
                 newStudent: blankStudent(), editingID: '', editingName: '', message: '', success: false,
-                dialog: blankDialog(), selectedIDs: [],
+                dialog: blankDialog(), importModal: blankImportModal(), selectedIDs: [],
             },
             onMounted() {
                 this.dialogKeydownHandler = event => this.closeDialogOnEscape(event)
@@ -207,6 +304,7 @@
                 window.removeEventListener('keydown', this.dialogKeydownHandler)
             },
             isAdmin() { return this.state.role === 'school_admin' },
+            canManage() { return this.state.role === 'school_admin' || this.state.role === 'teacher' },
             editNewStudent(field, event) { this.state.newStudent[field] = event.target.value; this.update() },
             createStudent(event) {
                 event.preventDefault()
@@ -354,8 +452,12 @@
                 }
             },
             closeDialogOnEscape(event) {
-                if (event.key === 'Escape' && this.state.dialog.open) {
-                    this.closeDialog(event)
+                if (event.key === 'Escape') {
+                    if (this.state.dialog.open) {
+                        this.closeDialog(event)
+                    } else if (this.state.importModal.open && !this.state.importModal.applying) {
+                        this.closeImportModal(event)
+                    }
                 }
             },
             dialogTitle() {
@@ -426,6 +528,134 @@
                     this.update({dialog: {...d, saving: false}})
                     this.fail(error, d.kind === 'transfer' ? 'Siswa tidak berhasil dipindahkan' : 'Status tidak berhasil diubah')
                 })
+            },
+            openImportModal(event) {
+                if (event) event.preventDefault()
+                this.update({importModal: blankImportModal({open: true})})
+                const fileInput = document.getElementById('students-import-file')
+                if (fileInput) fileInput.value = ''
+            },
+            closeImportModal(event) {
+                if (event) event.preventDefault()
+                if (this.state.importModal.applying) return
+                const fileInput = document.getElementById('students-import-file')
+                if (fileInput) fileInput.value = ''
+                this.update({importModal: blankImportModal()})
+            },
+            handleImportFileChange(event) {
+                const file = event.target.files[0]
+                if (!file) return
+
+                const formData = new FormData()
+                formData.append('file', file)
+
+                this.update({
+                    importModal: {
+                        ...this.state.importModal,
+                        loading: true,
+                        message: '',
+                        preview: null,
+                        students: [],
+                    },
+                })
+
+                axios.post('/api/v1/setup/students/import', formData, {
+                    headers: {'Content-Type': 'multipart/form-data'},
+                }).then(importRes => {
+                    const items = importRes.data.items || []
+                    if (items.length === 0) {
+                        this.update({
+                            importModal: {
+                                ...this.state.importModal,
+                                loading: false,
+                                message: 'File tidak berisi data siswa',
+                                success: false,
+                            },
+                        })
+                        return
+                    }
+                    return axios.post('/api/v1/setup/preview', {students: items}).then(previewRes => {
+                        this.update({
+                            importModal: {
+                                ...this.state.importModal,
+                                loading: false,
+                                students: items,
+                                preview: previewRes.data,
+                                message: `${items.length} baris siswa berhasil dibaca dari file`,
+                                success: true,
+                            },
+                        })
+                    })
+                }).catch(error => {
+                    const errMsg = (error.response && error.response.data && error.response.data.message) || 'Gagal membaca atau memvalidasi file siswa'
+                    this.update({
+                        importModal: {
+                            ...this.state.importModal,
+                            loading: false,
+                            message: errMsg,
+                            success: false,
+                        },
+                    })
+                })
+            },
+            applyImport(event) {
+                if (event) event.preventDefault()
+                const modal = this.state.importModal
+                if (modal.applying || !modal.preview || !modal.preview.valid || modal.students.length === 0) return
+
+                this.update({
+                    importModal: {
+                        ...modal,
+                        applying: true,
+                        message: '',
+                    },
+                })
+
+                axios.post('/api/v1/setup/apply', {students: modal.students}).then(() => {
+                    const count = modal.students.length
+                    const fileInput = document.getElementById('students-import-file')
+                    if (fileInput) fileInput.value = ''
+                    this.update({
+                        importModal: blankImportModal(),
+                        message: `${count} siswa berhasil diimpor`,
+                        success: true,
+                    })
+                    this.loadStudents(1)
+                }).catch(error => {
+                    const errMsg = (error.response && error.response.data && error.response.data.message) || 'Gagal menerapkan data impor siswa'
+                    this.update({
+                        importModal: {
+                            ...this.state.importModal,
+                            applying: false,
+                            message: errMsg,
+                            success: false,
+                        },
+                    })
+                })
+            },
+            getPreviewStudentName(index) {
+                const s = this.state.importModal.students[index]
+                return s ? s.name : ''
+            },
+            getPreviewStudentYear(index) {
+                const s = this.state.importModal.students[index]
+                return s ? s.academicYearLabel : ''
+            },
+            getPreviewStudentClass(index) {
+                const s = this.state.importModal.students[index]
+                return s ? s.classLabel : ''
+            },
+            actionLabel(action) {
+                if (action === 'create') return 'Buat'
+                if (action === 'update') return 'Ubah'
+                if (action === 'unchanged') return 'Tetap'
+                return action || '-'
+            },
+            actionClass(action) {
+                if (action === 'create') return 'success'
+                if (action === 'update') return 'warning'
+                if (action === 'unchanged') return 'secondary'
+                return 'secondary'
             },
         }
     </script>
