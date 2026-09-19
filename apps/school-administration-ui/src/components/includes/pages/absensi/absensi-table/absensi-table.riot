@@ -1,5 +1,10 @@
 <absensi-table>
 
+    <div if={state.showToast} class="toast toast-{state.toastSuccess ? 'success' : 'error'} toast-fixed">
+        <button class="btn btn-clear float-right" onclick={closeToast}></button>
+        {state.toastMessage}
+    </div>
+
     <div class="modal {state.showModalDeactivateReason ? 'active' : ''}" id="modal-deactivate-reason">
         <div class="modal-container">
             <div class="modal-header">
@@ -27,10 +32,54 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn" style="margin-right: 2%;" onclick={closeModalDeactivateReason}>Batal</button>
+                <button class="btn" onclick={closeModalDeactivateReason}>Batal</button>
                 <button class="btn btn-success {state.deactivateOnProgress ? 'loading' : ''}" onclick={deactivate}>
                     Simpan
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal {state.transferDialog.open ? 'active' : ''}"
+         role="dialog"
+         aria-modal="true"
+         aria-hidden={!state.transferDialog.open}
+         aria-labelledby="absensi-transfer-dialog-title">
+        <a class="modal-overlay" href="#close" role="button" aria-label="Tutup dialog" onclick={closeTransferDialog}></a>
+        <div class="modal-container">
+            <div class="modal-header">
+                <button class="btn btn-clear float-right" aria-label="Tutup" disabled={state.transferDialog.saving} onclick={closeTransferDialog}></button>
+                <div class="modal-title h5" id="absensi-transfer-dialog-title">Pindahkan Siswa</div>
+            </div>
+            <div class="modal-body">
+                <div class="content">
+                    <p>Pindahkan {state.selectedStudentClassIDs.length} siswa ke tahun ajaran dan kelas tujuan?</p>
+                    <div class="form-group">
+                        <label class="form-label">Dari</label>
+                        <input class="form-input" disabled value="{sourceYearLabel()} → {props.classLabel}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="absensi-dest-year">Ke tahun akademik</label>
+                        <select id="absensi-dest-year" class="form-select" value={state.transferDialog.destYear} onchange={event => update({transferDialog: {...state.transferDialog, destYear: event.target.value}})}>
+                            <option value="">Pilih tahun akademik</option>
+                            <option each={year in (props.academicYears || [])} value={year.ID}>{year.label}</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="absensi-dest-class">Ke kelas</label>
+                        <select id="absensi-dest-class" class="form-select" value={state.transferDialog.destClass} onchange={event => update({transferDialog: {...state.transferDialog, destClass: event.target.value}})}>
+                            <option value="">Pilih kelas</option>
+                            <option each={item in (props.classItems || [])} value={item.label}>{item.label}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" disabled={state.transferDialog.saving} onclick={closeTransferDialog}>Batal</button>
+                <button id="absensi-transfer-confirm"
+                        class="btn btn-primary loading-{state.transferDialog.saving}"
+                        disabled={state.transferDialog.saving || !state.transferDialog.destYear || !state.transferDialog.destClass}
+                        onclick={confirmTransfer}>Pindahkan</button>
             </div>
         </div>
     </div>
@@ -50,9 +99,10 @@
             </div>
         </template>
         <template if={props.students && props.students.length > 0}>
-            <table class="table">
+            <table class="table" tabindex="0" aria-label="Daftar absensi siswa">
                 <thead>
                 <tr>
+                    <th class="checkbox-col"><input type="checkbox" aria-label="Pilih semua" checked={allSelected()} onchange={toggleSelectAll}></th>
                     <th>Nama</th>
                     <th>Alias</th>
                     <th>Kehadiran</th>
@@ -62,6 +112,7 @@
                 <tbody>
                 <tr each={item in props.students}
                     style="{hideOnTable(item.studentClassID, state.hideStudentClassIDs) ? 'display: none;' : ''}">
+                    <td class="checkbox-col"><input type="checkbox" aria-label="Pilih {item.name}" checked={state.selectedStudentClassIDs.indexOf(item.studentClassID) >= 0} onchange={() => toggleSelect(item)}></td>
                     <td>
                         {item.name}
                     </td>
@@ -98,6 +149,9 @@
                     <td>
 
                     </td>
+                    <td>
+
+                    </td>
                 </tr>
                 </tbody>
             </table>
@@ -111,17 +165,17 @@
                     <button class="btn btn-success {state.saveOnProgress ? 'loading' : ''}" onclick={submitAttendance}>
                         Submit Absensi
                     </button>
-                </div>
-                <div class="col-4">
-                    <template if={state.showToast}>
-                        <div class="toast toast-{state.toastSuccess ? 'success' : 'error'}">
-                            <button class="btn btn-clear float-right" onclick={closeToast}></button>
-                            {state.toastMessage}
-                        </div>
-                    </template>
+                    <button if={state.selectedStudentClassIDs.length > 0} class="btn btn-primary" onclick={openTransferDialog} style="margin-left: 2%;">
+                        Pindahkan ({state.selectedStudentClassIDs.length})
+                    </button>
                 </div>
             </div>
         </div>
+
+        <style>
+            absensi-table .checkbox-col { width: 2.5rem; text-align: center; }
+            absensi-table .toast-fixed { position: fixed; top: 1rem; right: 1rem; z-index: 200; min-width: 20rem; max-width: 28rem; }
+        </style>
 
         <script>
             import {route, router, setBase} from '@riotjs/route'
@@ -141,9 +195,20 @@
                     deactivateSuccess: true,
                     deactivateOnProgress: false,
                     hideStudentClassIDs: [],
+                    selectedStudentClassIDs: [],
+                    transferDialog: {open: false, saving: false, destYear: '', destClass: ''},
                 },
                 onMounted(props, state) {
                     this.loadAttendanceTypes()
+                    this.transferKeydownHandler = event => {
+                        if (event.key === 'Escape' && this.state.transferDialog.open) {
+                            this.closeTransferDialog(event)
+                        }
+                    }
+                    window.addEventListener('keydown', this.transferKeydownHandler)
+                },
+                onBeforeUnmount() {
+                    window.removeEventListener('keydown', this.transferKeydownHandler)
                 },
                 hideOnTable(id, data) {
                     for (let i = 0; i < data.length; i++) {
@@ -152,6 +217,86 @@
                         }
                     }
                     return false;
+                },
+                visibleStudents() {
+                    if (!this.props.students) return []
+                    return this.props.students.filter(item => !this.hideOnTable(item.studentClassID, this.state.hideStudentClassIDs))
+                },
+                allSelected() {
+                    const visible = this.visibleStudents()
+                    return visible.length > 0 && visible.every(item => this.state.selectedStudentClassIDs.indexOf(item.studentClassID) >= 0)
+                },
+                toggleSelect(item) {
+                    const ids = this.state.selectedStudentClassIDs.slice()
+                    const idx = ids.indexOf(item.studentClassID)
+                    if (idx >= 0) ids.splice(idx, 1)
+                    else ids.push(item.studentClassID)
+                    this.update({selectedStudentClassIDs: ids})
+                },
+                toggleSelectAll() {
+                    const visible = this.visibleStudents()
+                    if (this.allSelected()) {
+                        const removeIDs = visible.map(item => item.studentClassID)
+                        this.update({selectedStudentClassIDs: this.state.selectedStudentClassIDs.filter(id => removeIDs.indexOf(id) < 0)})
+                    } else {
+                        const addIDs = visible.map(item => item.studentClassID)
+                        const merged = this.state.selectedStudentClassIDs.slice()
+                        for (const id of addIDs) { if (merged.indexOf(id) < 0) merged.push(id) }
+                        this.update({selectedStudentClassIDs: merged})
+                    }
+                },
+                sourceYearLabel() {
+                    const years = this.props.academicYears || []
+                    const year = years.find(y => y.ID === this.props.academicYearID)
+                    return year ? year.label : ''
+                },
+                openTransferDialog(event) {
+                    this.transferTrigger = event && event.currentTarget
+                    this.update({
+                        transferDialog: {open: true, saving: false, destYear: '', destClass: ''},
+                        toastMessage: '',
+                    })
+                    window.requestAnimationFrame(() => {
+                        const confirm = document.getElementById('absensi-transfer-confirm')
+                        if (confirm) confirm.focus()
+                    })
+                },
+                closeTransferDialog(event) {
+                    if (event) event.preventDefault()
+                    if (this.state.transferDialog.saving) return
+                    this.update({transferDialog: {open: false, saving: false, destYear: '', destClass: ''}})
+                    if (this.transferTrigger) {
+                        this.transferTrigger.focus()
+                        this.transferTrigger = null
+                    }
+                },
+                confirmTransfer(event) {
+                    event.preventDefault()
+                    const d = this.state.transferDialog
+                    if (d.saving || !d.destYear || !d.destClass) return
+                    this.update({transferDialog: {...d, saving: true}, toastMessage: ''})
+                    axios.post('/api/v1/student/transfer', {
+                        studentClassIDs: this.state.selectedStudentClassIDs,
+                        destinationAcademicYearId: d.destYear,
+                        destinationClassLabel: d.destClass,
+                    }).then(response => {
+                        const count = response.data && response.data.transferred || this.state.selectedStudentClassIDs.length
+                        this.update({
+                            transferDialog: {open: false, saving: false, destYear: '', destClass: ''},
+                            selectedStudentClassIDs: [],
+                            showToast: true,
+                            toastSuccess: true,
+                            toastMessage: `${count} siswa berhasil dipindahkan`,
+                        })
+                    }).catch(error => {
+                        const message = error.response && error.response.data && error.response.data.message
+                        this.update({
+                            transferDialog: {...d, saving: false},
+                            showToast: true,
+                            toastSuccess: false,
+                            toastMessage: message || 'Siswa tidak berhasil dipindahkan',
+                        })
+                    })
                 },
                 submitAttendance(e) {
                     e.preventDefault();

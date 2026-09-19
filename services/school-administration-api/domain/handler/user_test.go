@@ -35,6 +35,10 @@ func (f *fakeUserService) Logout(_ context.Context, token string) error {
 	return f.logoutErr
 }
 
+func (f *fakeUserService) ChangePassword(context.Context, string, string, string) error {
+	return nil
+}
+
 func (f *fakeUserService) RegisterTeachers(context.Context, []*userEntity.Teacher) error {
 	return nil
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type Repository interface {
-	List(ctx context.Context) ([]*attendancetype.AttendanceType, error)
+	List(ctx context.Context, schoolID string) ([]*attendancetype.AttendanceType, error)
 }
 
 type sqlRepository struct {
@@ -21,9 +21,9 @@ func NewSQLRepository(db *gorm.DB) *sqlRepository {
 	}
 }
 
-func (r *sqlRepository) List(ctx context.Context) ([]*attendancetype.AttendanceType, error) {
+func (r *sqlRepository) List(ctx context.Context, schoolID string) ([]*attendancetype.AttendanceType, error) {
 	var results []*attendancetype.AttendanceType
-	err := r.db.Order("created_at ASC").Find(&results).Error
+	err := r.db.WithContext(ctx).Where("school_id = ?", schoolID).Order("created_at ASC").Find(&results).Error
 	if err != nil {
 		return nil, err
 	}

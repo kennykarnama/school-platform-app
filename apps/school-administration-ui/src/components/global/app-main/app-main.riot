@@ -1,10 +1,10 @@
  <app-main>
-        <div class="container" style="margin-top: 2%; margin-left: 2%;">
-            <div class="columns">
-                <div class="col-2">
+        <div class="container app-shell">
+            <div class="columns app-layout">
+                <div class="column col-2 app-sidebar">
                     <aside-menu teacher={state.teacher}></aside-menu>
                 </div>
-                <div class="col-8">
+                <div class="column col-10 app-page">
                     <app-content></app-content>
                 </div>
             </div>
@@ -51,6 +51,11 @@
                             this.update({
                                 teacher: res.data,
                             })
+                            if (res.data.mustChangePassword && window.location.hash !== '#password') {
+                                router.push('/#password')
+                            } else if (res.data.role === 'platform_admin' && (!window.location.hash || window.location.hash === '#')) {
+                                router.push('/#platform/schools')
+                            }
                         }).catch(e => {
                             console.log(e)
                         });

@@ -1,0 +1,46 @@
+<platform-schools>
+    <div class="container platform-page">
+        <h2>Sekolah</h2>
+        <p class="text-gray">Kelola tenant sekolah dan administrator pertamanya.</p>
+        <div if={state.message} class="toast toast-{state.success ? 'success' : 'error'}">{state.message}</div>
+        <section>
+            <h4>Tambah Sekolah</h4>
+            <div class="columns">
+                <div class="column col-4 col-sm-12"><input class="form-input" value={state.form.name} placeholder="Nama sekolah" oninput={event => edit('name', event)}></div>
+                <div class="column col-4 col-sm-12"><input class="form-input" value={state.form.code} placeholder="Kode, contoh sekolah-01" oninput={event => edit('code', event)}></div>
+                <div class="column col-4 col-sm-12"><input class="form-input" value={state.form.administratorName} placeholder="Nama administrator" oninput={event => edit('administratorName', event)}></div>
+                <div class="column col-4 col-sm-12"><input class="form-input" value={state.form.administratorUsername} placeholder="Username administrator" oninput={event => edit('administratorUsername', event)}></div>
+                <div class="column col-4 col-sm-12"><input class="form-input" value={state.form.temporaryPassword} type="password" placeholder="Kata sandi sementara" oninput={event => edit('temporaryPassword', event)}></div>
+                <div class="column col-4 col-sm-12"><button class="btn btn-primary" onclick={createSchool}>Buat Sekolah</button></div>
+            </div>
+        </section>
+        <section>
+            <div class="table-scroll" tabindex="0" role="region" aria-label="Daftar sekolah">
+            <table class="table table-striped">
+                <thead><tr><th>Sekolah</th><th>Kode</th><th>Status</th><th></th></tr></thead>
+                <tbody><tr each={school in state.schools}>
+                    <td><input class="form-input input-sm" value={school.name} oninput={event => editSchool(school, 'name', event)}></td>
+                    <td><input class="form-input input-sm" value={school.code} oninput={event => editSchool(school, 'code', event)}></td>
+                    <td>{school.active ? 'Aktif' : 'Nonaktif'}</td>
+                    <td><button class="btn btn-sm" onclick={() => saveSchool(school)}>Simpan</button> <button class="btn btn-sm {school.active ? 'btn-error' : 'btn-success'}" onclick={() => setActive(school)}>{school.active ? 'Nonaktifkan' : 'Aktifkan'}</button></td>
+                </tr></tbody>
+            </table>
+            </div>
+        </section>
+    </div>
+    <style>platform-schools section { margin-top: 2rem; } platform-schools .column { margin-bottom: .5rem; }</style>
+    <script>
+        const blank = () => ({name: '', code: '', administratorName: '', administratorUsername: '', temporaryPassword: ''})
+        export default {
+            state: {schools: [], form: blank(), message: '', success: false},
+            onMounted() { this.load() },
+            load() { axios.get('/api/v1/platform/schools').then(response => this.update({schools: response.data.items || []})).catch(error => this.fail(error)) },
+            edit(field, event) { this.state.form[field] = event.target.value },
+            createSchool(event) { event.preventDefault(); axios.post('/api/v1/platform/schools', this.state.form).then(() => { this.update({form: blank(), message: 'Sekolah berhasil dibuat', success: true}); this.load() }).catch(error => this.fail(error)) },
+            editSchool(school, field, event) { school[field] = event.target.value },
+            saveSchool(school) { axios.put(`/api/v1/platform/schools/${school.id}`, {name: school.name, code: school.code}).then(() => { this.update({message: 'Sekolah berhasil diperbarui', success: true}); this.load() }).catch(error => this.fail(error)) },
+            setActive(school) { axios.patch(`/api/v1/platform/schools/${school.id}/status`, {active: !school.active}).then(() => this.load()).catch(error => this.fail(error)) },
+            fail(error) { this.update({message: error.response && error.response.data && error.response.data.message || 'Operasi tidak berhasil', success: false}) },
+        }
+    </script>
+</platform-schools>

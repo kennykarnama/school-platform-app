@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/kennykarnama/school-adminstration-api/domain/entity/student"
 	"github.com/kennykarnama/school-adminstration-api/domain/entity/user"
+	"gorm.io/gorm"
 	"net/http"
 )
 
@@ -29,8 +30,16 @@ func ErrorToHTTPStatus(err error) int {
 		return http.StatusUnauthorized
 	case user.ErrInvalidCredentials:
 		return http.StatusUnauthorized
+	case user.ErrAccountInactive:
+		return http.StatusUnauthorized
+	case user.ErrForbidden, user.ErrPasswordChangeRequired:
+		return http.StatusForbidden
 	case student.ErrAlternativeIDAlreadyExists:
 		return http.StatusConflict
+	case student.ErrActivePlacementAlreadyExists:
+		return http.StatusConflict
+	case gorm.ErrRecordNotFound:
+		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError
 	}

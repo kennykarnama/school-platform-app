@@ -42,16 +42,16 @@ func (h *SetupHandler) handle(w http.ResponseWriter, r *http.Request, apply bool
 		ResponseJson(w, ErrorResponse{Message: err.Error()}, http.StatusBadRequest)
 		return
 	}
-	session, err := user.NewUserSessionFromCtx(r.Context())
+	principal, err := user.NewPrincipalFromCtx(r.Context())
 	if err != nil {
 		ResponseJson(w, ErrorResponse{Message: err.Error()}, http.StatusUnauthorized)
 		return
 	}
 	var result *setupSvc.Preview
 	if apply {
-		result, err = h.svc.Apply(r.Context(), req, session.UserId)
+		result, err = h.svc.Apply(r.Context(), req, principal.SchoolID)
 	} else {
-		result, err = h.svc.Preview(r.Context(), req, session.UserId)
+		result, err = h.svc.Preview(r.Context(), req, principal.SchoolID)
 	}
 	if err != nil {
 		ResponseJson(w, ErrorResponse{Message: err.Error()}, http.StatusInternalServerError)

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	entity "github.com/kennykarnama/school-adminstration-api/domain/entity/academicyear"
+	"github.com/kennykarnama/school-adminstration-api/domain/entity/user"
 	"github.com/kennykarnama/school-adminstration-api/domain/repository/academicyear"
 )
 
@@ -22,5 +23,9 @@ func NewService(repo academicyear.Repository) *service {
 }
 
 func (s *service) List(ctx context.Context) ([]*entity.AcademicYear, error) {
-	return s.repo.List(ctx)
+	principal, err := user.NewPrincipalFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.List(ctx, *principal)
 }

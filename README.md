@@ -10,6 +10,8 @@ Monorepo for the school administration UI, administration API, and user API.
 
 The Go services remain independent modules and are coordinated by the root `go.work` file.
 
+The administration application is multi-tenant. School data is isolated by `school_id`; globally unique usernames sign in without selecting a school. Platform administrators create and activate schools, school administrators manage their school's setup, teachers, classes, and access assignments, and teachers can only work with the academic-year/class combinations assigned to them. New and reset accounts must replace their temporary password on first login.
+
 ## Prerequisites
 
 - Go 1.22 or newer
@@ -54,6 +56,8 @@ alternativeID,name,academicYearLabel,classLabel
 ```
 
 Leave `alternativeID` empty to generate a unique `STU-…` value during preview. Use **Validasi & Pratinjau** before applying. Imports accept up to 5,000 student rows, upsert matching records, and never delete records omitted from the form or imported file. A student is matched by alternative ID, and each student may have one active class assignment per academic year. Student names are not treated as unique. The Go API generates the workbook at `GET /api/v1/setup/students/template` and parses multipart Excel/CSV uploads at `POST /api/v1/setup/students/import`; the authenticated preview/apply endpoints then validate and persist the returned rows.
+
+Open **Siswa** to search and filter active student placements. School administrators can add students and correct their names there; teachers can view students only in their assigned academic-year/class combinations. Alternative IDs remain read-only after creation. The attendance screen retains its quick-add student flow.
 
 Run the complete development stack:
 
@@ -115,6 +119,9 @@ git push origin v1.0.0
 
 Stable tags publish `1.0.0`, `sha-...`, and `latest` image tags. Prerelease tags such as `v1.1.0-rc.1` publish the version and commit tags without moving `latest`.
 
+Every verified push to `main` publishes `experimental` and `sha-...` tags for all four images. `experimental` is mutable and intended for integration testing; use its immutable `sha-...` companion when a deployment must be reproducible. Main-branch builds do not move `latest` or create GitHub Releases.
+
+To build another branch, open **Actions → Build and release Docker images → Run workflow**, select the branch, and start the workflow. A branch named `feature/tenant-admin`, for example, publishes `branch-feature-tenant-admin` plus the immutable `sha-...` tag. Manual branch runs do not update `experimental` or `latest` and do not create a GitHub Release.
 Every verified push to `main` publishes `experimental` and `sha-...` tags. To build another branch, open **Actions → Build and release Docker images → Run workflow**, select the branch, and start the workflow. A branch such as `feature/tenant-admin` publishes `branch-feature-tenant-admin` plus its immutable `sha-...` tag. Manual branch runs do not update `experimental` or `latest` and do not create GitHub Releases.
 
 After the images are published, the workflow creates a GitHub Release containing a VM-ready `school-platform-app-v1.0.0-linux-amd64.tar.gz` archive and its SHA-256 checksum. The archive contains Compose configuration and deployment instructions; its default `IMAGE_TAG=latest` pulls the newest stable images.

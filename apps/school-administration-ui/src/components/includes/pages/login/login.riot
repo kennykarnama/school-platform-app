@@ -1,5 +1,5 @@
 <login>
-    <div class="columns">
+    <div class="login-panel">
 
         <template if={state.showToast}>
             <template if={state.success}>
@@ -16,13 +16,7 @@
                 </div>
             </template>
         </template>
-    </div>
 
-    <div class="columns mt-2">
-        <div class="column">
-
-        </div>
-        <div class="column">
             <form>
                 <div class="login-brand">
                     <div class="education-logo" aria-hidden="true">
@@ -48,13 +42,20 @@
                 <button class="btn btn-primary input-group-btn mt-2 {state.loadingButton}" type="button" onclick="{login}">Login</button>
             </form>
 
-        </div>
-        <div class="column">
-
-        </div>
     </div>
 
     <style>
+        login {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: 1.5rem;
+        }
+        login .login-panel { width: 100%; max-width: 20rem; }
+        login .login-panel > .toast { margin-bottom: 1rem; }
+
         login .login-brand { margin-bottom: 1.25rem; text-align: center; }
         login .login-brand h4 { margin: .6rem 0 .15rem; }
         login .login-brand p { margin: 0; }
