@@ -71,6 +71,24 @@
             </div>
         </section>
 
+        <section>
+            <div class="section-title">
+                <h4>Siswa</h4>
+                <div>
+                    <a class="btn btn-sm" href="/api/v1/setup/students/template" target="_blank" download>Unduh Template</a>
+                    <button class="btn btn-sm btn-primary" onclick={triggerImportSiswa}>Impor Data</button>
+                    <input type="file" id="import-siswa-file" style="display: none" accept=".csv,.xlsx" onchange={handleImportSiswa}>
+                </div>
+            </div>
+            <div if={state.students && state.students.length > 0} class="toast toast-primary">
+                {state.students.length} siswa siap diimpor dari file.
+                <button class="btn btn-clear float-right" aria-label="Batal" onclick={clearImportSiswa}></button>
+            </div>
+            <div if={!state.students || state.students.length === 0} class="text-gray">
+                Belum ada data siswa yang siap diimpor.
+            </div>
+        </section>
+
         <div class="action-bar">
             <button class="btn btn-primary loading-{state.loading}" disabled={state.loading} onclick={preview}>Validasi & Pratinjau</button>
             <button class="btn btn-success" disabled={!state.preview || !state.preview.valid || state.loading} onclick={apply}>Terapkan Data</button>
@@ -121,6 +139,7 @@
                 academicYears: [],
                 attendanceTypes: [],
                 classes: [],
+                students: [],
                 preview: null,
                 loading: false,
                 message: '',
@@ -156,8 +175,42 @@
                 return {
                     academicYears: this.state.academicYears.filter(nonEmpty),
                     attendanceTypes: this.state.attendanceTypes.filter(item => String(item.label || '').trim()),
-                    students: [],
+                    students: this.state.students.filter(nonEmpty),
                 }
+            },
+            triggerImportSiswa(event) {
+                event.preventDefault()
+                const input = document.getElementById('import-siswa-file')
+                if (input) input.click()
+            },
+            handleImportSiswa(event) {
+                const file = event.target.files[0]
+                if (!file) return
+
+                const formData = new FormData()
+                formData.append('file', file)
+
+                this.update({loading: true, message: ''})
+                axios.post('/api/v1/setup/students/import', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                }).then(response => {
+                    this.update({
+                        students: response.data.items || [],
+                        success: true,
+                        message: `${(response.data.items || []).length} siswa berhasil dibaca dari file`
+                    })
+                    this.changed()
+                }).catch(error => {
+                    this.fail(error, 'Gagal mengimpor file siswa')
+                }).finally(() => {
+                    this.update({loading: false})
+                    event.target.value = '' // reset file input
+                })
+            },
+            clearImportSiswa(event) {
+                if (event) event.preventDefault()
+                this.update({students: []})
+                this.changed()
             },
             preview(event) {
                 event.preventDefault()
