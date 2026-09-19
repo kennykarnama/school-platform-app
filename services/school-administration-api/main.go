@@ -115,10 +115,10 @@ func main() {
 	r.Handle("/api/v1/admin/teachers/{id}/reset-password", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.ResetTeacherPassword)))).Methods("POST")
 	r.Handle("/api/v1/admin/teachers/{id}/access", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.ReplaceTeacherAccess)))).Methods("PUT")
 	r.Handle("/api/v1/admin/classes", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(administrationHandler.CreateClass)))).Methods("POST")
-	r.Handle("/api/v1/setup/preview", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Preview)))).Methods("POST")
-	r.Handle("/api/v1/setup/apply", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Apply)))).Methods("POST")
-	r.Handle("/api/v1/setup/students/template", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.StudentTemplate)))).Methods("GET")
-	r.Handle("/api/v1/setup/students/import", interceptor.RequireRoles(userEntity.RoleSchoolAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.ImportStudents)))).Methods("POST")
+	r.Handle("/api/v1/setup/preview", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher, userEntity.RolePlatformAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Preview)))).Methods("POST")
+	r.Handle("/api/v1/setup/apply", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher, userEntity.RolePlatformAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.Apply)))).Methods("POST")
+	r.Handle("/api/v1/setup/students/template", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher, userEntity.RolePlatformAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.StudentTemplate)))).Methods("GET")
+	r.Handle("/api/v1/setup/students/import", interceptor.RequireRoles(userEntity.RoleSchoolAdmin, userEntity.RoleTeacher, userEntity.RolePlatformAdmin)(handlers.LoggingHandler(os.Stdout, http.HandlerFunc(setupHandler.ImportStudents)))).Methods("POST")
 
 	if cfg.EnableAuth {
 		logrus.Infof("auth enabled")
